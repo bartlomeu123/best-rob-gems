@@ -1,15 +1,16 @@
-import { Link } from 'react-router-dom';
-import { Search, Menu, X, Gamepad2 } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Search, Menu, X, Gamepad2, LogOut, User } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/hooks/useAuth';
 
 const Navbar = () => {
   const [searchOpen, setSearchOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [query, setQuery] = useState('');
   const navigate = useNavigate();
+  const { user, profile, signOut, loading } = useAuth();
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,9 +56,23 @@ const Navbar = () => {
               <Search className="h-4 w-4" />
             </Button>
           )}
-          <Link to="/login">
-            <Button variant="default" size="sm">Sign In</Button>
-          </Link>
+          {!loading && user ? (
+            <div className="flex items-center gap-2">
+              <Link to={`/user/${profile?.username || 'me'}`}>
+                <Button variant="ghost" size="sm" className="gap-2">
+                  <User className="h-4 w-4" />
+                  {profile?.username || 'Profile'}
+                </Button>
+              </Link>
+              <Button variant="ghost" size="icon" onClick={signOut} title="Sign out">
+                <LogOut className="h-4 w-4" />
+              </Button>
+            </div>
+          ) : (
+            <Link to="/login">
+              <Button variant="default" size="sm">Sign In</Button>
+            </Link>
+          )}
         </div>
 
         {/* Mobile toggle */}
@@ -77,9 +92,16 @@ const Navbar = () => {
             <Link to="/trending" className="text-sm text-muted-foreground" onClick={() => setMobileOpen(false)}>Trending</Link>
             <Link to="/new-games" className="text-sm text-muted-foreground" onClick={() => setMobileOpen(false)}>New Games</Link>
             <Link to="/add-game" className="text-sm text-muted-foreground" onClick={() => setMobileOpen(false)}>Add Game</Link>
-            <Link to="/login" onClick={() => setMobileOpen(false)}>
-              <Button variant="default" size="sm" className="w-full">Sign In</Button>
-            </Link>
+            {user ? (
+              <>
+                <Link to={`/user/${profile?.username || 'me'}`} className="text-sm text-muted-foreground" onClick={() => setMobileOpen(false)}>Profile</Link>
+                <Button variant="ghost" size="sm" onClick={() => { signOut(); setMobileOpen(false); }}>Sign Out</Button>
+              </>
+            ) : (
+              <Link to="/login" onClick={() => setMobileOpen(false)}>
+                <Button variant="default" size="sm" className="w-full">Sign In</Button>
+              </Link>
+            )}
           </div>
         </div>
       )}

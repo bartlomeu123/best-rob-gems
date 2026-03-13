@@ -1,5 +1,4 @@
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { getGameBySlug, getSimilarGames, mockComments } from '@/lib/mockData';
 import { getScore, getScoreColor, getScoreTextClass, PROS_OPTIONS, CONS_OPTIONS } from '@/lib/types';
 import { ThumbsUp, ThumbsDown, ExternalLink, Heart, Flag, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -8,13 +7,48 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import GameCard from '@/components/GameCard';
 import { gameImages } from '@/lib/gameImages';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { fetchGameBySlug, fetchApprovedGames, fetchComments, addComment, castVote, getUserVote, toggleFavorite, isFavorited } from '@/lib/supabaseData';
+import { useAuth } from '@/hooks/useAuth';
+import { toast } from 'sonner';
 
 const GamePage = () => {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
-  const game = getGameBySlug(slug || '');
-  const [sortBy, setSortBy] = useState<'likes' | 'newest' | 'oldest'>('likes');
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const [sortBy, setSortBy] = useState<'likes' | 'newest' | 'oldest'>('newest');
+  const [commentText, setCommentText] = useState('');
+  const [selectedPros, setSelectedPros] = useState<string[]>([]);
+  const [selectedCons, setSelectedCons] = useState<string[]>([]);
+  const [userVote, setUserVote] = useState<'like' | 'dislike' | null>(null);
+  const [isFav, setIsFav] = useState(false);
+
+  const { data: game, isLoading } = useQuery({
+    queryKey: ['game', slug],
+    queryFn: () => fetchGameBySlug(slug || ''),
+    enabled: !!slug,
+  });
+
+  const { data: allGames = [] } = useQuery({ queryKey: ['topGames'], queryFn: fetchApprovedGames });
+
+  const { data: comments = [] } = useQuery({
+    queryKey: ['comments', game?.id],
+    queryFn: () => fetchComments(game!.id),
+    enabled: !!game?.id,
+  });
+
+  useEffect(() => {
+    if (user && game?.id) {
+      getUserVote(game.id, user.id).then(setUserVote);
+      isFavorited(game.id, user.id).then(setIsFav);
+    }
+  }, [user, game?.id]);
+
+  if (isLoading) {
+    return <div className="container mx-auto px-4 py-16 text-center"><p className="text-muted-foreground">Loading...</p></div>;
+  }
 
   if (!game) {
     return (
@@ -26,27 +60,54 @@ const GamePage = () => {
   }
 
   const score = getScore(game.likes, game.dislikes);
-  const scoreClass = getScoreColor(score);
   const scoreText = getScoreTextClass(score);
-  const similar = getSimilarGames(game);
-  const comments = mockComments.filter(c => c.gameId === game.id);
   const imgSrc = gameImages[game.slug] || '/placeholder.svg';
 
-  // Aggregate pros/cons from comments
-  const prosCount: Record<string, number> = {};
-  const consCount: Record<string, number> = {};
-  comments.forEach(c => {
-    c.pros.forEach(p => { prosCount[p] = (prosCount[p] || 0) + 1; });
-    c.cons.forEach(cn => { consCount[cn] = (consCount[cn] || 0) + 1; });
-  });
-  const topPros = Object.entries(prosCount).sort((a, b) => b[1] - a[1]).slice(0, 4);
-  const topCons = Object.entries(consCount).sort((a, b) => b[1] - a[1]).slice(0, 4);
+  const similar = allGames
+    .filter(g => g.id !== game.id)
+    .map(g => ({
+      game: g,
+      score: g.tags.filter(t => game.tags.includes(t)).length * 2 + (g.category === game.category ? 3 : 0),
+    }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 4)
+    .map(g => g.game);
 
-  const sortedComments = [...comments].sort((a, b) => {
-    if (sortBy === 'likes') return b.likes - a.likes;
-    if (sortBy === 'newest') return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-    return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-  });
+  const handleVote = async (type: 'like' | 'dislike') => {
+    if (!user) { toast.error('Sign in to vote'); return; }
+    await castVote(game.id, user.id, type);
+    const newVote = await getUserVote(game.id, user.id);
+    setUserVote(newVote);
+    queryClient.invalidateQueries({ queryKey: ['game', slug] });
+    queryClient.invalidateQueries({ queryKey: ['topGames'] });
+  };
+
+  const handleFavorite = async () => {
+    if (!user) { toast.error('Sign in to favorite'); return; }
+    await toggleFavorite(game.id, user.id);
+    setIsFav(!isFav);
+  };
+
+  const handleComment = async () => {
+    if (!user) { toast.error('Sign in to comment'); return; }
+    if (!commentText.trim()) { toast.error('Write a comment first'); return; }
+    const { error } = await addComment({
+      game_id: game.id,
+      user_id: user.id,
+      text: commentText.trim(),
+      pros: selectedPros,
+      cons: selectedCons,
+    });
+    if (error) { toast.error('Failed to post comment'); return; }
+    toast.success('Comment posted!');
+    setCommentText('');
+    setSelectedPros([]);
+    setSelectedCons([]);
+    queryClient.invalidateQueries({ queryKey: ['comments', game.id] });
+  };
+
+  const togglePro = (pro: string) => setSelectedPros(prev => prev.includes(pro) ? prev.filter(p => p !== pro) : [...prev, pro]);
+  const toggleCon = (con: string) => setSelectedCons(prev => prev.includes(con) ? prev.filter(c => c !== con) : [...prev, con]);
 
   return (
     <div className="container mx-auto px-4 py-6 space-y-8">
@@ -72,14 +133,14 @@ const GamePage = () => {
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button variant="default" className="gap-2">
+              <Button variant={userVote === 'like' ? 'default' : 'secondary'} className="gap-2" onClick={() => handleVote('like')}>
                 <ThumbsUp className="h-4 w-4" /> Like ({game.likes.toLocaleString()})
               </Button>
-              <Button variant="secondary" className="gap-2">
+              <Button variant={userVote === 'dislike' ? 'destructive' : 'secondary'} className="gap-2" onClick={() => handleVote('dislike')}>
                 <ThumbsDown className="h-4 w-4" /> Dislike ({game.dislikes.toLocaleString()})
               </Button>
-              <Button variant="secondary" className="gap-2">
-                <Heart className="h-4 w-4" /> Favorite
+              <Button variant={isFav ? 'default' : 'secondary'} className="gap-2" onClick={handleFavorite}>
+                <Heart className={`h-4 w-4 ${isFav ? 'fill-current' : ''}`} /> Favorite
               </Button>
               {game.robloxLink && (
                 <a href={game.robloxLink} target="_blank" rel="noopener noreferrer">
@@ -95,35 +156,6 @@ const GamePage = () => {
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-8">
-          {/* Community Evaluation */}
-          {(topPros.length > 0 || topCons.length > 0) && (
-            <section className="rounded-xl border border-border bg-card p-6">
-              <h2 className="font-display text-xl font-bold mb-4">Community Evaluation</h2>
-              <div className="grid grid-cols-2 gap-6">
-                <div>
-                  <h3 className="text-sm font-semibold text-green-400 uppercase tracking-wider mb-3">Pros</h3>
-                  <div className="space-y-2">
-                    {topPros.map(([pro]) => (
-                      <div key={pro} className="flex items-center gap-2 rounded-md bg-green-500/10 px-3 py-2 text-sm">
-                        <span className="text-green-400">✓</span> {pro}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <h3 className="text-sm font-semibold text-red-400 uppercase tracking-wider mb-3">Cons</h3>
-                  <div className="space-y-2">
-                    {topCons.map(([con]) => (
-                      <div key={con} className="flex items-center gap-2 rounded-md bg-red-500/10 px-3 py-2 text-sm">
-                        <span className="text-red-400">✗</span> {con}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </section>
-          )}
-
           {/* Description */}
           <section className="rounded-xl border border-border bg-card p-6">
             <h2 className="font-display text-xl font-bold mb-3">About This Game</h2>
@@ -135,9 +167,9 @@ const GamePage = () => {
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-display text-xl font-bold">Comments ({comments.length})</h2>
               <div className="flex gap-1">
-                {(['likes', 'newest', 'oldest'] as const).map(s => (
+                {(['newest', 'oldest'] as const).map(s => (
                   <Button key={s} variant={sortBy === s ? 'default' : 'ghost'} size="sm" onClick={() => setSortBy(s)} className="text-xs capitalize">
-                    {s === 'likes' ? 'Most Liked' : s}
+                    {s}
                   </Button>
                 ))}
               </div>
@@ -145,14 +177,21 @@ const GamePage = () => {
 
             {/* Comment form */}
             <div className="mb-6 rounded-lg border border-border bg-secondary/50 p-4 space-y-4">
-              <Textarea placeholder="Write your review..." className="bg-card resize-none" rows={3} />
+              <Textarea
+                placeholder={user ? "Write your review..." : "Sign in to write a review"}
+                className="bg-card resize-none"
+                rows={3}
+                value={commentText}
+                onChange={e => setCommentText(e.target.value)}
+                disabled={!user}
+              />
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-xs font-semibold text-green-400 uppercase mb-2">Select Pros</p>
                   <div className="space-y-1.5">
                     {PROS_OPTIONS.slice(0, 5).map(pro => (
                       <label key={pro} className="flex items-center gap-2 text-xs cursor-pointer">
-                        <Checkbox /> {pro}
+                        <Checkbox checked={selectedPros.includes(pro)} onCheckedChange={() => togglePro(pro)} /> {pro}
                       </label>
                     ))}
                   </div>
@@ -162,54 +201,41 @@ const GamePage = () => {
                   <div className="space-y-1.5">
                     {CONS_OPTIONS.slice(0, 5).map(con => (
                       <label key={con} className="flex items-center gap-2 text-xs cursor-pointer">
-                        <Checkbox /> {con}
+                        <Checkbox checked={selectedCons.includes(con)} onCheckedChange={() => toggleCon(con)} /> {con}
                       </label>
                     ))}
                   </div>
                 </div>
               </div>
-              <Button variant="default" size="sm">Submit Review</Button>
+              <Button variant="default" size="sm" onClick={handleComment} disabled={!user}>Submit Review</Button>
             </div>
 
             {/* Comment list */}
             <div className="space-y-4">
-              {sortedComments.map(comment => (
+              {comments.map((comment: any) => (
                 <div key={comment.id} className="rounded-lg border border-border bg-secondary/30 p-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary">
-                        {comment.username[0]}
+                        {(comment.profiles?.username || 'U')[0].toUpperCase()}
                       </div>
                       <div>
-                        <span className="text-sm font-semibold">{comment.username}</span>
-                        <span className="ml-2 text-xs text-muted-foreground">{comment.createdAt}</span>
+                        <span className="text-sm font-semibold">{comment.profiles?.username || 'Anonymous'}</span>
+                        <span className="ml-2 text-xs text-muted-foreground">{new Date(comment.created_at).toLocaleDateString()}</span>
                       </div>
                     </div>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground">
-                      <Flag className="h-3 w-3" />
-                    </Button>
                   </div>
                   <p className="mt-2 text-sm text-muted-foreground">{comment.text}</p>
-                  <div className="mt-3 flex items-center gap-3">
-                    <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs text-muted-foreground">
-                      <ThumbsUp className="h-3 w-3" /> {comment.likes}
-                    </Button>
-                    <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground">
-                      Reply
-                    </Button>
-                  </div>
-                  {comment.replies.map(reply => (
-                    <div key={reply.id} className="ml-8 mt-3 rounded-lg border border-border bg-card/50 p-3">
-                      <div className="flex items-center gap-2">
-                        <div className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary">
-                          {reply.username[0]}
-                        </div>
-                        <span className="text-sm font-semibold">{reply.username}</span>
-                        <span className="text-xs text-muted-foreground">{reply.createdAt}</span>
-                      </div>
-                      <p className="mt-1 text-sm text-muted-foreground">{reply.text}</p>
+                  {(comment.pros?.length > 0 || comment.cons?.length > 0) && (
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {comment.pros?.map((p: string) => (
+                        <Badge key={p} variant="secondary" className="text-xs text-green-400">✓ {p}</Badge>
+                      ))}
+                      {comment.cons?.map((c: string) => (
+                        <Badge key={c} variant="secondary" className="text-xs text-red-400">✗ {c}</Badge>
+                      ))}
                     </div>
-                  ))}
+                  )}
                 </div>
               ))}
             </div>
@@ -218,7 +244,6 @@ const GamePage = () => {
 
         {/* Sidebar */}
         <div className="space-y-6">
-          {/* Tags */}
           <section className="rounded-xl border border-border bg-card p-4">
             <h3 className="font-display text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3">Tags</h3>
             <div className="flex flex-wrap gap-2">
@@ -232,7 +257,6 @@ const GamePage = () => {
             </div>
           </section>
 
-          {/* Quick links */}
           <section className="rounded-xl border border-border bg-card p-4 space-y-2">
             <Link to={`/games-like/${game.slug}`}>
               <Button variant="secondary" size="sm" className="w-full justify-start text-xs">
@@ -244,16 +268,12 @@ const GamePage = () => {
                 More {game.category} games
               </Button>
             </Link>
-            <Button variant="ghost" size="sm" className="w-full justify-start text-xs gap-1 text-muted-foreground">
-              <Flag className="h-3 w-3" /> Report Game
-            </Button>
           </section>
 
-          {/* Similar Games */}
           <section>
             <h3 className="font-display text-lg font-bold mb-3">Similar Games</h3>
             <div className="space-y-3">
-              {similar.slice(0, 4).map(g => (
+              {similar.map(g => (
                 <GameCard key={g.id} game={g} />
               ))}
             </div>
