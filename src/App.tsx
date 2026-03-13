@@ -3,6 +3,7 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { AuthProvider } from "@/hooks/useAuth";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import Index from "./pages/Index";
@@ -30,28 +31,30 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Navbar />
-        <main className="min-h-screen">
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/game/:slug" element={<GamePage />} />
-            <Route path="/category/:name" element={<CategoryPage />} />
-            <Route path="/tag/:name" element={<TagPage />} />
-            <Route path="/top-games" element={<TopGamesPage />} />
-            <Route path="/trending" element={<TrendingPage />} />
-            <Route path="/new-games" element={<NewGamesPage />} />
-            <Route path="/random" element={<RandomPage />} />
-            <Route path="/games-like/:slug" element={<GamesLikePage />} />
-            <Route path="/compare/:slugs" element={<ComparePage />} />
-            <Route path="/search" element={<SearchPage />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/add-game" element={<AddGamePage />} />
-            <Route path="/admin" element={<AdminPage />} />
-            <Route path="/user/:username" element={<UserProfilePage />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </main>
-        <Footer />
+        <AuthProvider>
+          <Navbar />
+          <main className="min-h-screen">
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/game/:slug" element={<GamePage />} />
+              <Route path="/category/:name" element={<CategoryPage />} />
+              <Route path="/tag/:name" element={<TagPage />} />
+              <Route path="/top-games" element={<TopGamesPage />} />
+              <Route path="/trending" element={<TrendingPage />} />
+              <Route path="/new-games" element={<NewGamesPage />} />
+              <Route path="/random" element={<RandomPage />} />
+              <Route path="/games-like/:slug" element={<GamesLikePage />} />
+              <Route path="/compare/:slugs" element={<ComparePage />} />
+              <Route path="/search" element={<SearchPage />} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/add-game" element={<AddGamePage />} />
+              <Route path="/admin" element={<AdminPage />} />
+              <Route path="/user/:username" element={<UserProfilePage />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </main>
+          <Footer />
+        </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
