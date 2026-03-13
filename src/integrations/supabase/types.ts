@@ -14,16 +14,235 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      comments: {
+        Row: {
+          cons: string[] | null
+          created_at: string
+          game_id: string
+          id: string
+          likes: number
+          parent_id: string | null
+          pros: string[] | null
+          text: string
+          user_id: string
+        }
+        Insert: {
+          cons?: string[] | null
+          created_at?: string
+          game_id: string
+          id?: string
+          likes?: number
+          parent_id?: string | null
+          pros?: string[] | null
+          text: string
+          user_id: string
+        }
+        Update: {
+          cons?: string[] | null
+          created_at?: string
+          game_id?: string
+          id?: string
+          likes?: number
+          parent_id?: string | null
+          pros?: string[] | null
+          text?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comments_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comments_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "comments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      favorites: {
+        Row: {
+          created_at: string
+          game_id: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          game_id: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          game_id?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "favorites_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      games: {
+        Row: {
+          category: string
+          created_at: string
+          description: string | null
+          dislikes: number
+          id: string
+          image: string | null
+          likes: number
+          rank_change: number
+          roblox_link: string | null
+          slug: string
+          status: string
+          submitted_by: string | null
+          tags: string[] | null
+          title: string
+          updated_at: string
+          votes_last_24h: number
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          description?: string | null
+          dislikes?: number
+          id?: string
+          image?: string | null
+          likes?: number
+          rank_change?: number
+          roblox_link?: string | null
+          slug: string
+          status?: string
+          submitted_by?: string | null
+          tags?: string[] | null
+          title: string
+          updated_at?: string
+          votes_last_24h?: number
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          description?: string | null
+          dislikes?: number
+          id?: string
+          image?: string | null
+          likes?: number
+          rank_change?: number
+          roblox_link?: string | null
+          slug?: string
+          status?: string
+          submitted_by?: string | null
+          tags?: string[] | null
+          title?: string
+          updated_at?: string
+          votes_last_24h?: number
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          id: string
+          updated_at: string
+          user_id: string
+          username: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+          username: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+          username?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      votes: {
+        Row: {
+          created_at: string
+          game_id: string
+          id: string
+          user_id: string
+          vote_type: string
+        }
+        Insert: {
+          created_at?: string
+          game_id: string
+          id?: string
+          user_id: string
+          vote_type: string
+        }
+        Update: {
+          created_at?: string
+          game_id?: string
+          id?: string
+          user_id?: string
+          vote_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "votes_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "moderator" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +369,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "moderator", "user"],
+    },
   },
 } as const
