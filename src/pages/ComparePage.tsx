@@ -1,18 +1,19 @@
-import { useParams } from 'react-router-dom';
-import { getGameBySlug } from '@/lib/mockData';
-import { getScore, getScoreColor, getScoreTextClass } from '@/lib/types';
+import { useParams, Link } from 'react-router-dom';
+import { getScore, getScoreTextClass } from '@/lib/types';
 import { gameImages } from '@/lib/gameImages';
 import { Button } from '@/components/ui/button';
-import { Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { fetchGameBySlug } from '@/lib/supabaseData';
 
 const ComparePage = () => {
   const { slugs } = useParams<{ slugs: string }>();
   const parts = (slugs || '').split('-vs-');
-  const game1 = getGameBySlug(parts[0] || '');
-  const game2 = getGameBySlug(parts[1] || '');
+
+  const { data: game1 } = useQuery({ queryKey: ['game', parts[0]], queryFn: () => fetchGameBySlug(parts[0] || '') });
+  const { data: game2 } = useQuery({ queryKey: ['game', parts[1]], queryFn: () => fetchGameBySlug(parts[1] || '') });
 
   if (!game1 || !game2) {
-    return <div className="container mx-auto px-4 py-16 text-center text-muted-foreground">One or both games not found.</div>;
+    return <div className="container mx-auto px-4 py-16 text-center text-muted-foreground">Loading or games not found...</div>;
   }
 
   const score1 = getScore(game1.likes, game1.dislikes);
@@ -35,13 +36,6 @@ const ComparePage = () => {
             </div>
           </div>
         ))}
-      </div>
-      <div className="mt-8 rounded-xl border border-border bg-card p-6 text-center">
-        <h3 className="font-display text-lg font-bold mb-4">Which game do you prefer?</h3>
-        <div className="flex justify-center gap-4">
-          <Button variant="default">{game1.title}</Button>
-          <Button variant="secondary">{game2.title}</Button>
-        </div>
       </div>
     </div>
   );

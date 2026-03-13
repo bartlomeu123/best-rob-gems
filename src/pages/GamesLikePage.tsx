@@ -1,14 +1,28 @@
 import { useParams } from 'react-router-dom';
-import { getGameBySlug, getSimilarGames } from '@/lib/mockData';
+import { useQuery } from '@tanstack/react-query';
+import { fetchGameBySlug, fetchApprovedGames } from '@/lib/supabaseData';
 import GameCard from '@/components/GameCard';
 
 const GamesLikePage = () => {
   const { slug } = useParams<{ slug: string }>();
-  const game = getGameBySlug(slug || '');
+  const { data: game } = useQuery({
+    queryKey: ['game', slug],
+    queryFn: () => fetchGameBySlug(slug || ''),
+    enabled: !!slug,
+  });
+  const { data: allGames = [] } = useQuery({ queryKey: ['topGames'], queryFn: fetchApprovedGames });
 
-  if (!game) return <div className="container mx-auto px-4 py-16 text-center text-muted-foreground">Game not found.</div>;
+  if (!game) return <div className="container mx-auto px-4 py-16 text-center text-muted-foreground">Loading...</div>;
 
-  const similar = getSimilarGames(game);
+  const similar = allGames
+    .filter(g => g.id !== game.id)
+    .map(g => ({
+      game: g,
+      score: g.tags.filter(t => game.tags.includes(t)).length * 2 + (g.category === game.category ? 3 : 0),
+    }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 10)
+    .map(g => g.game);
 
   return (
     <div className="container mx-auto px-4 py-6">
