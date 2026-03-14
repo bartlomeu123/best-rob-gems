@@ -263,6 +263,65 @@ export async function fetchCategoryCounts(): Promise<Record<string, number>> {
   return counts;
 }
 
+export async function fetchFeatureOptions(): Promise<FeatureOption[]> {
+  const { data } = await supabase
+    .from('features')
+    .select('id, name')
+    .order('name', { ascending: true });
+
+  return (data || []) as FeatureOption[];
+}
+
+export async function fetchGameFeatures(gameId: string): Promise<FeatureOption[]> {
+  const { data } = await supabase
+    .from('game_features')
+    .select('feature_id, features(name)')
+    .eq('game_id', gameId);
+
+  if (!data) return [];
+
+  return (data as any[])
+    .map((row) => ({
+      id: row.feature_id,
+      name: row.features?.name,
+    }))
+    .filter((item) => !!item.name) as FeatureOption[];
+}
+
+export async function fetchGamesBySubmitter(userId: string): Promise<Game[]> {
+  const { data } = await supabase
+    .from('games')
+    .select('*')
+    .eq('submitted_by', userId)
+    .order('created_at', { ascending: false });
+
+  if (!data) return [];
+  return (data as unknown as DbGame[]).map(dbGameToGame);
+}
+
+export async function fetchFavoritedGames(userId: string): Promise<Game[]> {
+  const { data: favorites } = await supabase
+    .from('favorites')
+    .select('game_id, created_at')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+
+  if (!favorites || favorites.length === 0) return [];
+
+  const gameIds = favorites.map((f: any) => f.game_id);
+
+  const { data: games } = await supabase
+    .from('games')
+    .select('*')
+    .in('id', gameIds);
+
+  if (!games) return [];
+
+  const mapped = (games as unknown as DbGame[]).map(dbGameToGame);
+  const orderMap = new Map(gameIds.map((id: string, index: number) => [id, index]));
+  return mapped.sort((a, b) => (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0));
+}
+
 // ---- Comments ----
 
 export async function fetchComments(gameId: string) {
