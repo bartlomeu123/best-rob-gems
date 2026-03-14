@@ -191,8 +191,28 @@ export async function updateGame(gameId: string, updates: {
   tags?: string[];
   roblox_link?: string;
   slug?: string;
+  submitter_type?: 'regular' | 'developer';
+  contact_email?: string;
+  contact_other?: string;
+  feature_ids?: string[];
 }) {
-  return supabase.from('games').update(updates).eq('id', gameId);
+  const { feature_ids, ...gameUpdates } = updates;
+
+  const updateResult = await supabase.from('games').update(gameUpdates).eq('id', gameId);
+  if (updateResult.error) return updateResult;
+
+  if (feature_ids) {
+    const { error: clearError } = await supabase.from('game_features').delete().eq('game_id', gameId);
+    if (clearError) return { data: null, error: clearError };
+
+    if (feature_ids.length > 0) {
+      const rows = feature_ids.map((featureId) => ({ game_id: gameId, feature_id: featureId }));
+      const { error: insertError } = await supabase.from('game_features').insert(rows);
+      if (insertError) return { data: null, error: insertError };
+    }
+  }
+
+  return updateResult;
 }
 
 export async function adminAddGame(game: {
