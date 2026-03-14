@@ -343,7 +343,7 @@ const AdminPage = () => {
                   value={editForm.category}
                   onChange={e => setEditForm(f => ({ ...f, category: e.target.value }))}
                 >
-                  {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  {ALL_CATEGORIES.map(c => <option key={c.slug} value={c.slug}>{c.name}</option>)}
                 </select>
                 <Input placeholder="Tags (comma separated)" value={editForm.tags} onChange={e => setEditForm(f => ({ ...f, tags: e.target.value }))} />
                 <Input placeholder="Roblox link" value={editForm.roblox_link} onChange={e => setEditForm(f => ({ ...f, roblox_link: e.target.value }))} />
