@@ -60,6 +60,12 @@ const GamePage = () => {
     enabled: !!game?.id,
   });
 
+  const { data: allFeatureOptions = [] } = useQuery({
+    queryKey: ['featureOptions'],
+    queryFn: fetchFeatureOptions,
+    enabled: isAdmin,
+  });
+
   useEffect(() => {
     if (user && game?.id) {
       getUserVote(game.id, user.id).then(setUserVote);
