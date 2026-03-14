@@ -237,12 +237,18 @@ export async function fetchComments(gameId: string) {
     else voteCounts[v.comment_id].down++;
   }
 
-  return data.map((c: any) => ({
+  const enrichedComments = data.map((c: any) => ({
     ...c,
     is_admin: adminSet.has(c.user_id),
     upvotes: voteCounts[c.id]?.up || 0,
     downvotes: voteCounts[c.id]?.down || 0,
   }));
+
+  return enrichedComments.sort((a: any, b: any) => {
+    const scoreDiff = (b.upvotes - b.downvotes) - (a.upvotes - a.downvotes);
+    if (scoreDiff !== 0) return scoreDiff;
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+  });
 }
 
 export async function addComment(comment: {
