@@ -1,12 +1,12 @@
 import { useParams } from 'react-router-dom';
-import { categories } from '@/lib/mockData';
 import { useQuery } from '@tanstack/react-query';
 import { fetchGamesByCategory } from '@/lib/supabaseData';
+import { getCategoryBySlug } from '@/lib/categories';
 import GameCard from '@/components/GameCard';
 
 const CategoryPage = () => {
   const { name } = useParams<{ name: string }>();
-  const cat = categories.find(c => c.slug === name);
+  const cat = getCategoryBySlug(name || '');
   const { data: games = [], isLoading } = useQuery({
     queryKey: ['category', name],
     queryFn: () => fetchGamesByCategory(name || ''),
