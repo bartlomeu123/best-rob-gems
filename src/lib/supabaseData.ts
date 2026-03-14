@@ -186,7 +186,19 @@ export async function fetchComments(gameId: string) {
     .select('*, profiles!comments_user_id_fkey_profiles(username, avatar_url)')
     .eq('game_id', gameId)
     .order('created_at', { ascending: false });
-  return data || [];
+
+  if (!data) return [];
+
+  // Fetch admin roles for comment authors
+  const userIds = [...new Set(data.map((c: any) => c.user_id))];
+  const { data: roles } = await supabase
+    .from('user_roles')
+    .select('user_id, role')
+    .in('user_id', userIds)
+    .eq('role', 'admin');
+
+  const adminSet = new Set((roles || []).map((r: any) => r.user_id));
+  return data.map((c: any) => ({ ...c, is_admin: adminSet.has(c.user_id) }));
 }
 
 export async function addComment(comment: {

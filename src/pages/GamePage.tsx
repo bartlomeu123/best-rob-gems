@@ -282,15 +282,37 @@ const GamePage = () => {
                         {(comment.profiles?.username || 'U')[0].toUpperCase()}
                       </div>
                       <div>
-                        <span className="text-sm font-semibold">{comment.profiles?.username || 'Anonymous'}</span>
-                        <span className="ml-2 text-xs text-muted-foreground">{new Date(comment.created_at).toLocaleDateString()}</span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-sm font-semibold">{comment.profiles?.username || 'Anonymous'}</span>
+                          {comment.is_admin && (
+                            <Badge variant="default" className="text-[10px] px-1.5 py-0 h-4 font-semibold">Admin</Badge>
+                          )}
+                        </div>
+                        <span className="text-xs text-muted-foreground">{new Date(comment.created_at).toLocaleDateString()}</span>
                       </div>
                     </div>
-                    {user && user.id !== comment.user_id && (
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => handleReport(comment.id)} title="Report">
-                        <Flag className="h-3.5 w-3.5" />
-                      </Button>
-                    )}
+                    <div className="flex items-center gap-1">
+                      {user && user.id !== comment.user_id && (
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => handleReport(comment.id)} title="Report">
+                          <Flag className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                      {isAdmin && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                          title="Delete comment"
+                          onClick={async () => {
+                            await deleteComment(comment.id);
+                            toast.success('Comment deleted');
+                            queryClient.invalidateQueries({ queryKey: ['comments', game.id] });
+                          }}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
                   <p className="mt-2 text-sm text-muted-foreground">{comment.text}</p>
                   {(comment.pros?.length > 0 || comment.cons?.length > 0) && (
