@@ -28,7 +28,7 @@ const AdminPage = () => {
   // Add game form state
   const [addOpen, setAddOpen] = useState(false);
   const [addForm, setAddForm] = useState({
-    title: '', description: '', image: '', category: CATEGORIES[0], tags: '', roblox_link: '',
+    title: '', description: '', image: '', category: ALL_CATEGORIES[0].slug, tags: '', roblox_link: '',
   });
 
   // Edit game state
