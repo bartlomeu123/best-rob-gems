@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { Game } from './types';
+import { FeatureOption } from './gameFeatures';
 
 export interface DbGame {
   id: string;
