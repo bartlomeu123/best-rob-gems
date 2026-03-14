@@ -192,6 +192,7 @@ const GamePage = () => {
     } else {
       queryClient.invalidateQueries({ queryKey: ['game', slug] });
     }
+    queryClient.invalidateQueries({ queryKey: ['gameFeatures', game.id] });
   };
 
   const togglePro = (pro: string) => setSelectedPros(prev => prev.includes(pro) ? prev.filter(p => p !== pro) : [...prev, pro]);
