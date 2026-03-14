@@ -472,6 +472,15 @@ const GamePage = () => {
             </select>
             <Input placeholder="Tags (comma separated)" value={editForm.tags} onChange={e => setEditForm(f => ({ ...f, tags: e.target.value }))} />
             <Input placeholder="Roblox link" value={editForm.roblox_link} onChange={e => setEditForm(f => ({ ...f, roblox_link: e.target.value }))} />
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Game Features</p>
+              <FeatureChecklist
+                options={allFeatureOptions}
+                selectedIds={editFeatureIds}
+                onToggle={(id) => setEditFeatureIds(prev => prev.includes(id) ? prev.filter(f => f !== id) : [...prev, id])}
+                className="grid grid-cols-1 gap-1.5 max-h-48 overflow-y-auto sm:grid-cols-2"
+              />
+            </div>
             <Button className="w-full" onClick={handleEditGame}>Save Changes</Button>
           </div>
         </DialogContent>
