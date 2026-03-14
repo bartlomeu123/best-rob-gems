@@ -187,7 +187,19 @@ const GamePage = () => {
   const togglePro = (pro: string) => setSelectedPros(prev => prev.includes(pro) ? prev.filter(p => p !== pro) : [...prev, pro]);
   const toggleCon = (con: string) => setSelectedCons(prev => prev.includes(con) ? prev.filter(c => c !== con) : [...prev, con]);
 
-  const sortedComments = sortBy === 'oldest' ? [...comments].reverse() : comments;
+  const sortedComments = [...comments].sort((a: any, b: any) => {
+    if (sortBy === 'newest') {
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    }
+
+    if (sortBy === 'oldest') {
+      return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+    }
+
+    const scoreDiff = (b.upvotes - b.downvotes) - (a.upvotes - a.downvotes);
+    if (scoreDiff !== 0) return scoreDiff;
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+  });
 
   return (
     <div className="container mx-auto px-4 py-6 space-y-8">
