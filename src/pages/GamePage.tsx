@@ -52,6 +52,12 @@ const GamePage = () => {
     enabled: !!game?.id,
   });
 
+  const { data: gameFeatures = [] } = useQuery({
+    queryKey: ['gameFeatures', game?.id],
+    queryFn: () => fetchGameFeatures(game!.id),
+    enabled: !!game?.id,
+  });
+
   useEffect(() => {
     if (user && game?.id) {
       getUserVote(game.id, user.id).then(setUserVote);
