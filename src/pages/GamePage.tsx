@@ -15,8 +15,9 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   fetchGameBySlug, fetchApprovedGames, fetchComments, addComment, castVote,
   getUserVote, toggleFavorite, isFavorited, reportComment, updateGame, deleteComment,
-  castCommentVote, getUserCommentVotes, fetchGameFeatures,
+  castCommentVote, getUserCommentVotes, fetchGameFeatures, fetchFeatureOptions,
 } from '@/lib/supabaseData';
+import FeatureChecklist from '@/components/game/FeatureChecklist';
 import { ALL_CATEGORIES } from '@/lib/categories';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
@@ -37,6 +38,7 @@ const GamePage = () => {
   // Admin edit state
   const [editOpen, setEditOpen] = useState(false);
   const [editForm, setEditForm] = useState({ title: '', description: '', image: '', category: '', tags: '', roblox_link: '' });
+  const [editFeatureIds, setEditFeatureIds] = useState<string[]>([]);
 
   const { data: game, isLoading } = useQuery({
     queryKey: ['game', slug],
@@ -56,6 +58,12 @@ const GamePage = () => {
     queryKey: ['gameFeatures', game?.id],
     queryFn: () => fetchGameFeatures(game!.id),
     enabled: !!game?.id,
+  });
+
+  const { data: allFeatureOptions = [] } = useQuery({
+    queryKey: ['featureOptions'],
+    queryFn: fetchFeatureOptions,
+    enabled: isAdmin,
   });
 
   useEffect(() => {
@@ -160,6 +168,7 @@ const GamePage = () => {
       tags: game.tags.join(', '),
       roblox_link: game.robloxLink || '',
     });
+    setEditFeatureIds(gameFeatures.map(f => f.id));
     setEditOpen(true);
   };
 
@@ -173,6 +182,7 @@ const GamePage = () => {
       tags: editForm.tags ? editForm.tags.split(',').map(t => t.trim()).filter(Boolean) : [],
       roblox_link: editForm.roblox_link.trim() || undefined,
       slug: newSlug,
+      feature_ids: editFeatureIds,
     });
     if (error) { toast.error('Failed to update'); return; }
     toast.success('Game updated!');
@@ -182,6 +192,7 @@ const GamePage = () => {
     } else {
       queryClient.invalidateQueries({ queryKey: ['game', slug] });
     }
+    queryClient.invalidateQueries({ queryKey: ['gameFeatures', game.id] });
   };
 
   const togglePro = (pro: string) => setSelectedPros(prev => prev.includes(pro) ? prev.filter(p => p !== pro) : [...prev, pro]);
@@ -461,6 +472,15 @@ const GamePage = () => {
             </select>
             <Input placeholder="Tags (comma separated)" value={editForm.tags} onChange={e => setEditForm(f => ({ ...f, tags: e.target.value }))} />
             <Input placeholder="Roblox link" value={editForm.roblox_link} onChange={e => setEditForm(f => ({ ...f, roblox_link: e.target.value }))} />
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Game Features</p>
+              <FeatureChecklist
+                options={allFeatureOptions}
+                selectedIds={editFeatureIds}
+                onToggle={(id) => setEditFeatureIds(prev => prev.includes(id) ? prev.filter(f => f !== id) : [...prev, id])}
+                className="grid grid-cols-1 gap-1.5 max-h-48 overflow-y-auto sm:grid-cols-2"
+              />
+            </div>
             <Button className="w-full" onClick={handleEditGame}>Save Changes</Button>
           </div>
         </DialogContent>
