@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { Game } from './types';
 
 export interface DbGame {
   id: string;
@@ -17,9 +18,6 @@ export interface DbGame {
   rank_change: number;
   created_at: string;
 }
-
-// Adapter to convert DB game to the Game interface used by components
-import { Game } from './types';
 
 export function dbGameToGame(g: DbGame): Game {
   return {
@@ -122,6 +120,15 @@ export async function fetchPendingGames(): Promise<Game[]> {
   return (data as unknown as DbGame[]).map(dbGameToGame);
 }
 
+export async function fetchAllGames(): Promise<Game[]> {
+  const { data } = await supabase
+    .from('games')
+    .select('*')
+    .order('created_at', { ascending: false });
+  if (!data) return [];
+  return (data as unknown as DbGame[]).map(dbGameToGame);
+}
+
 export async function submitGame(game: {
   title: string;
   slug: string;
@@ -129,6 +136,7 @@ export async function submitGame(game: {
   description?: string;
   tags?: string[];
   roblox_link?: string;
+  image?: string;
   submitted_by: string;
 }) {
   return supabase.from('games').insert({ ...game, status: 'pending' });
@@ -142,11 +150,40 @@ export async function rejectGame(gameId: string) {
   return supabase.from('games').update({ status: 'rejected' }).eq('id', gameId);
 }
 
+export async function deleteGame(gameId: string) {
+  return supabase.from('games').delete().eq('id', gameId);
+}
+
+export async function updateGame(gameId: string, updates: {
+  title?: string;
+  description?: string;
+  image?: string;
+  category?: string;
+  tags?: string[];
+  roblox_link?: string;
+  slug?: string;
+}) {
+  return supabase.from('games').update(updates).eq('id', gameId);
+}
+
+export async function adminAddGame(game: {
+  title: string;
+  slug: string;
+  category: string;
+  description?: string;
+  tags?: string[];
+  roblox_link?: string;
+  image?: string;
+  submitted_by: string;
+}) {
+  return supabase.from('games').insert({ ...game, status: 'approved' });
+}
+
 // Comments
 export async function fetchComments(gameId: string) {
   const { data } = await supabase
     .from('comments')
-    .select('*, profiles:user_id(username, avatar_url)')
+    .select('*, profiles!comments_user_id_fkey_profiles(username, avatar_url)')
     .eq('game_id', gameId)
     .order('created_at', { ascending: false });
   return data || [];
@@ -163,6 +200,32 @@ export async function addComment(comment: {
   return supabase.from('comments').insert(comment);
 }
 
+export async function deleteComment(commentId: string) {
+  return supabase.from('comments').delete().eq('id', commentId);
+}
+
+// Comment Reports
+export async function reportComment(commentId: string, reportedBy: string, reason: string) {
+  return supabase.from('comment_reports').insert({
+    comment_id: commentId,
+    reported_by: reportedBy,
+    reason,
+  });
+}
+
+export async function fetchReportedComments() {
+  const { data } = await supabase
+    .from('comment_reports')
+    .select('*, comments(id, text, game_id, user_id, created_at, profiles!comments_user_id_fkey_profiles(username))')
+    .eq('resolved', false)
+    .order('created_at', { ascending: false });
+  return data || [];
+}
+
+export async function resolveReport(reportId: string) {
+  return supabase.from('comment_reports').update({ resolved: true }).eq('id', reportId);
+}
+
 // Votes
 export async function getUserVote(gameId: string, userId: string) {
   const { data } = await supabase
@@ -175,7 +238,6 @@ export async function getUserVote(gameId: string, userId: string) {
 }
 
 export async function castVote(gameId: string, userId: string, voteType: 'like' | 'dislike') {
-  // Upsert vote
   const { data: existing } = await supabase
     .from('votes')
     .select('id, vote_type')
@@ -185,10 +247,8 @@ export async function castVote(gameId: string, userId: string, voteType: 'like' 
 
   if (existing) {
     if (existing.vote_type === voteType) {
-      // Remove vote
       return supabase.from('votes').delete().eq('id', existing.id);
     } else {
-      // Change vote
       return supabase.from('votes').update({ vote_type: voteType }).eq('id', existing.id);
     }
   } else {

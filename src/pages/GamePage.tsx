@@ -1,22 +1,29 @@
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { getScore, getScoreColor, getScoreTextClass, PROS_OPTIONS, CONS_OPTIONS } from '@/lib/types';
-import { ThumbsUp, ThumbsDown, ExternalLink, Heart, Flag, ArrowLeft } from 'lucide-react';
+import { getScore, getScoreTextClass, PROS_OPTIONS, CONS_OPTIONS } from '@/lib/types';
+import { ThumbsUp, ThumbsDown, ExternalLink, Heart, Flag, ArrowLeft, Edit } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import GameCard from '@/components/GameCard';
 import { gameImages } from '@/lib/gameImages';
 import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { fetchGameBySlug, fetchApprovedGames, fetchComments, addComment, castVote, getUserVote, toggleFavorite, isFavorited } from '@/lib/supabaseData';
+import {
+  fetchGameBySlug, fetchApprovedGames, fetchComments, addComment, castVote,
+  getUserVote, toggleFavorite, isFavorited, reportComment, updateGame,
+} from '@/lib/supabaseData';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
+
+const CATEGORIES = ['adventure', 'rpg', 'simulator', 'horror', 'fighting', 'tycoon', 'obby', 'fps', 'social', 'other'];
 
 const GamePage = () => {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const queryClient = useQueryClient();
   const [sortBy, setSortBy] = useState<'likes' | 'newest' | 'oldest'>('newest');
   const [commentText, setCommentText] = useState('');
@@ -24,6 +31,10 @@ const GamePage = () => {
   const [selectedCons, setSelectedCons] = useState<string[]>([]);
   const [userVote, setUserVote] = useState<'like' | 'dislike' | null>(null);
   const [isFav, setIsFav] = useState(false);
+
+  // Admin edit state
+  const [editOpen, setEditOpen] = useState(false);
+  const [editForm, setEditForm] = useState({ title: '', description: '', image: '', category: '', tags: '', roblox_link: '' });
 
   const { data: game, isLoading } = useQuery({
     queryKey: ['game', slug],
@@ -61,7 +72,7 @@ const GamePage = () => {
 
   const score = getScore(game.likes, game.dislikes);
   const scoreText = getScoreTextClass(score);
-  const imgSrc = gameImages[game.slug] || '/placeholder.svg';
+  const imgSrc = game.image || gameImages[game.slug] || '/placeholder.svg';
 
   const similar = allGames
     .filter(g => g.id !== game.id)
@@ -106,14 +117,65 @@ const GamePage = () => {
     queryClient.invalidateQueries({ queryKey: ['comments', game.id] });
   };
 
+  const handleReport = async (commentId: string) => {
+    if (!user) { toast.error('Sign in to report'); return; }
+    const { error } = await reportComment(commentId, user.id, 'inappropriate');
+    if (error) {
+      if (error.code === '23505') toast.info('Already reported');
+      else toast.error('Failed to report');
+      return;
+    }
+    toast.success('Comment reported');
+  };
+
+  const openEditDialog = () => {
+    setEditForm({
+      title: game.title,
+      description: game.description,
+      image: game.image,
+      category: game.category,
+      tags: game.tags.join(', '),
+      roblox_link: game.robloxLink || '',
+    });
+    setEditOpen(true);
+  };
+
+  const handleEditGame = async () => {
+    const newSlug = editForm.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    const { error } = await updateGame(game.id, {
+      title: editForm.title.trim(),
+      description: editForm.description.trim(),
+      image: editForm.image.trim() || undefined,
+      category: editForm.category,
+      tags: editForm.tags ? editForm.tags.split(',').map(t => t.trim()).filter(Boolean) : [],
+      roblox_link: editForm.roblox_link.trim() || undefined,
+      slug: newSlug,
+    });
+    if (error) { toast.error('Failed to update'); return; }
+    toast.success('Game updated!');
+    setEditOpen(false);
+    if (newSlug !== slug) {
+      navigate(`/game/${newSlug}`);
+    } else {
+      queryClient.invalidateQueries({ queryKey: ['game', slug] });
+    }
+  };
+
   const togglePro = (pro: string) => setSelectedPros(prev => prev.includes(pro) ? prev.filter(p => p !== pro) : [...prev, pro]);
   const toggleCon = (con: string) => setSelectedCons(prev => prev.includes(con) ? prev.filter(c => c !== con) : [...prev, con]);
 
   return (
     <div className="container mx-auto px-4 py-6 space-y-8">
-      <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="gap-1 text-muted-foreground">
-        <ArrowLeft className="h-4 w-4" /> Back
-      </Button>
+      <div className="flex items-center justify-between">
+        <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="gap-1 text-muted-foreground">
+          <ArrowLeft className="h-4 w-4" /> Back
+        </Button>
+        {isAdmin && (
+          <Button variant="secondary" size="sm" className="gap-1" onClick={openEditDialog}>
+            <Edit className="h-4 w-4" /> Edit Game
+          </Button>
+        )}
+      </div>
 
       {/* Header */}
       <div className="relative overflow-hidden rounded-xl border border-border">
@@ -212,7 +274,7 @@ const GamePage = () => {
 
             {/* Comment list */}
             <div className="space-y-4">
-              {comments.map((comment: any) => (
+              {(sortBy === 'oldest' ? [...comments].reverse() : comments).map((comment: any) => (
                 <div key={comment.id} className="rounded-lg border border-border bg-secondary/30 p-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -224,6 +286,11 @@ const GamePage = () => {
                         <span className="ml-2 text-xs text-muted-foreground">{new Date(comment.created_at).toLocaleDateString()}</span>
                       </div>
                     </div>
+                    {user && user.id !== comment.user_id && (
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => handleReport(comment.id)} title="Report">
+                        <Flag className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
                   </div>
                   <p className="mt-2 text-sm text-muted-foreground">{comment.text}</p>
                   {(comment.pros?.length > 0 || comment.cons?.length > 0) && (
@@ -280,6 +347,30 @@ const GamePage = () => {
           </section>
         </div>
       </div>
+
+      {/* Admin Edit Dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Game</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Input placeholder="Title" value={editForm.title} onChange={e => setEditForm(f => ({ ...f, title: e.target.value }))} />
+            <Input placeholder="Image URL" value={editForm.image} onChange={e => setEditForm(f => ({ ...f, image: e.target.value }))} />
+            <Textarea placeholder="Description" rows={3} value={editForm.description} onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))} />
+            <select
+              className="w-full rounded-md border border-border bg-secondary px-3 py-2 text-sm"
+              value={editForm.category}
+              onChange={e => setEditForm(f => ({ ...f, category: e.target.value }))}
+            >
+              {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+            <Input placeholder="Tags (comma separated)" value={editForm.tags} onChange={e => setEditForm(f => ({ ...f, tags: e.target.value }))} />
+            <Input placeholder="Roblox link" value={editForm.roblox_link} onChange={e => setEditForm(f => ({ ...f, roblox_link: e.target.value }))} />
+            <Button className="w-full" onClick={handleEditGame}>Save Changes</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
