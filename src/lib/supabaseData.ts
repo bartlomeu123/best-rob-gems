@@ -17,6 +17,9 @@ export interface DbGame {
   votes_last_24h: number;
   rank_change: number;
   created_at: string;
+  submitter_type: 'regular' | 'developer' | null;
+  contact_email: string | null;
+  contact_other: string | null;
 }
 
 export function dbGameToGame(g: DbGame): Game {
