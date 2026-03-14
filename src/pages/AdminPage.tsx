@@ -99,7 +99,7 @@ const AdminPage = () => {
     });
     if (error) { toast.error('Failed to add game'); return; }
     toast.success('Game added and approved!');
-    setAddForm({ title: '', description: '', image: '', category: CATEGORIES[0], tags: '', roblox_link: '' });
+    setAddForm({ title: '', description: '', image: '', category: ALL_CATEGORIES[0].slug, tags: '', roblox_link: '' });
     setAddOpen(false);
     loadData();
   };
