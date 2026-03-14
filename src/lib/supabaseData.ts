@@ -147,8 +147,28 @@ export async function submitGame(game: {
   roblox_link?: string;
   image?: string;
   submitted_by: string;
+  submitter_type?: 'regular' | 'developer';
+  contact_email?: string;
+  contact_other?: string;
+  feature_ids?: string[];
 }) {
-  return supabase.from('games').insert({ ...game, status: 'pending' });
+  const { feature_ids = [], ...gamePayload } = game;
+
+  const { data, error } = await supabase
+    .from('games')
+    .insert({ ...gamePayload, status: 'pending' })
+    .select('id')
+    .single();
+
+  if (error || !data) return { data: null, error };
+
+  if (feature_ids.length > 0) {
+    const featureRows = feature_ids.map((featureId) => ({ game_id: data.id, feature_id: featureId }));
+    const { error: featureError } = await supabase.from('game_features').insert(featureRows);
+    if (featureError) return { data: null, error: featureError };
+  }
+
+  return { data, error: null };
 }
 
 export async function approveGame(gameId: string) {
