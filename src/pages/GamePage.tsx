@@ -1,6 +1,6 @@
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { getScore, getScoreTextClass, PROS_OPTIONS, CONS_OPTIONS } from '@/lib/types';
-import { ThumbsUp, ThumbsDown, ExternalLink, Heart, Flag, ArrowLeft, Edit } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, ExternalLink, Heart, Flag, ArrowLeft, Edit, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
