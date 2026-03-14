@@ -19,6 +19,13 @@ const Index = () => {
 
   return (
     <div className="container mx-auto space-y-10 px-4 py-6">
+      {isAdmin && (
+        <Link to="/admin">
+          <Button variant="default" className="gap-2">
+            <Shield className="h-4 w-4" /> Admin Panel
+          </Button>
+        </Link>
+      )}
       {topGames.length > 0 && <HeroCarousel games={topGames} />}
       <CategorySection />
       {topGames.length > 0 && <GameSection title="🏆 Top Roblox Games" games={topGames} linkTo="/top-games" showRank />}
