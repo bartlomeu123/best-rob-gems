@@ -15,8 +15,9 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   fetchGameBySlug, fetchApprovedGames, fetchComments, addComment, castVote,
   getUserVote, toggleFavorite, isFavorited, reportComment, updateGame, deleteComment,
-  castCommentVote, getUserCommentVotes, fetchGameFeatures,
+  castCommentVote, getUserCommentVotes, fetchGameFeatures, fetchFeatureOptions,
 } from '@/lib/supabaseData';
+import FeatureChecklist from '@/components/game/FeatureChecklist';
 import { ALL_CATEGORIES } from '@/lib/categories';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
