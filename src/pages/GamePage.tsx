@@ -182,6 +182,7 @@ const GamePage = () => {
       tags: editForm.tags ? editForm.tags.split(',').map(t => t.trim()).filter(Boolean) : [],
       roblox_link: editForm.roblox_link.trim() || undefined,
       slug: newSlug,
+      feature_ids: editFeatureIds,
     });
     if (error) { toast.error('Failed to update'); return; }
     toast.success('Game updated!');
