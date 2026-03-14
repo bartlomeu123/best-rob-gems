@@ -405,6 +405,20 @@ const GamePage = () => {
 
         {/* Sidebar */}
         <div className="space-y-6">
+          {gameFeatures.length > 0 && (
+            <section className="rounded-xl border border-border bg-card p-4">
+              <h3 className="font-display text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3">Game Features</h3>
+              <ul className="space-y-2">
+                {gameFeatures.map((feature) => (
+                  <li key={feature.id} className="flex items-center gap-2 text-sm text-foreground">
+                    <Check className="h-4 w-4 text-primary" />
+                    <span>{feature.name}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
           <section className="rounded-xl border border-border bg-card p-4">
             <h3 className="font-display text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3">Tags</h3>
             <div className="flex flex-wrap gap-2">
