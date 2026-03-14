@@ -1,6 +1,6 @@
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { getScore, getScoreTextClass, PROS_OPTIONS, CONS_OPTIONS } from '@/lib/types';
-import { ThumbsUp, ThumbsDown, ExternalLink, Heart, Flag, ArrowLeft, Edit, Trash2, ChevronUp, ChevronDown } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, ExternalLink, Heart, Flag, ArrowLeft, Edit, Trash2, ChevronUp, ChevronDown, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
@@ -15,7 +15,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   fetchGameBySlug, fetchApprovedGames, fetchComments, addComment, castVote,
   getUserVote, toggleFavorite, isFavorited, reportComment, updateGame, deleteComment,
-  castCommentVote, getUserCommentVotes,
+  castCommentVote, getUserCommentVotes, fetchGameFeatures,
 } from '@/lib/supabaseData';
 import { ALL_CATEGORIES } from '@/lib/categories';
 import { useAuth } from '@/hooks/useAuth';
