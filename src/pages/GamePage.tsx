@@ -269,9 +269,9 @@ const GamePage = () => {
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-display text-xl font-bold">Comments ({comments.length})</h2>
               <div className="flex gap-1">
-                {(['newest', 'oldest'] as const).map(s => (
+                {(['top', 'newest', 'oldest'] as const).map((s) => (
                   <Button key={s} variant={sortBy === s ? 'default' : 'ghost'} size="sm" onClick={() => setSortBy(s)} className="text-xs capitalize">
-                    {s}
+                    {s === 'top' ? 'Top' : s}
                   </Button>
                 ))}
               </div>
