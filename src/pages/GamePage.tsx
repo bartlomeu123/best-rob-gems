@@ -168,6 +168,7 @@ const GamePage = () => {
       tags: game.tags.join(', '),
       roblox_link: game.robloxLink || '',
     });
+    setEditFeatureIds(gameFeatures.map(f => f.id));
     setEditOpen(true);
   };
 
