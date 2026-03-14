@@ -38,6 +38,7 @@ const GamePage = () => {
   // Admin edit state
   const [editOpen, setEditOpen] = useState(false);
   const [editForm, setEditForm] = useState({ title: '', description: '', image: '', category: '', tags: '', roblox_link: '' });
+  const [editFeatureIds, setEditFeatureIds] = useState<string[]>([]);
 
   const { data: game, isLoading } = useQuery({
     queryKey: ['game', slug],
