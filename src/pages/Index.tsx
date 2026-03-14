@@ -2,15 +2,15 @@ import HeroCarousel from '@/components/home/HeroCarousel';
 import CategorySection from '@/components/home/CategorySection';
 import GameSection from '@/components/home/GameSection';
 import { Button } from '@/components/ui/button';
-import { Shuffle } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Shuffle, Shield } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { fetchApprovedGames, fetchTrendingGames, fetchRisingGames, fetchNewGames } from '@/lib/supabaseData';
 import { useAuth } from '@/hooks/useAuth';
 
 const Index = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
 
   const { data: topGames = [] } = useQuery({ queryKey: ['topGames'], queryFn: fetchApprovedGames });
   const { data: trending = [] } = useQuery({ queryKey: ['trendingGames'], queryFn: fetchTrendingGames });
@@ -19,6 +19,13 @@ const Index = () => {
 
   return (
     <div className="container mx-auto space-y-10 px-4 py-6">
+      {isAdmin && (
+        <Link to="/admin">
+          <Button variant="default" className="gap-2">
+            <Shield className="h-4 w-4" /> Admin Panel
+          </Button>
+        </Link>
+      )}
       {topGames.length > 0 && <HeroCarousel games={topGames} />}
       <CategorySection />
       {topGames.length > 0 && <GameSection title="🏆 Top Roblox Games" games={topGames} linkTo="/top-games" showRank />}
