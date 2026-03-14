@@ -10,7 +10,7 @@ import { useAuth } from '@/hooks/useAuth';
 
 const Index = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
 
   const { data: topGames = [] } = useQuery({ queryKey: ['topGames'], queryFn: fetchApprovedGames });
   const { data: trending = [] } = useQuery({ queryKey: ['trendingGames'], queryFn: fetchTrendingGames });
