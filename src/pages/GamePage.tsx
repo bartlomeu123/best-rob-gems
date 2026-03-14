@@ -258,15 +258,9 @@ const GamePage = () => {
 
           {/* Comments */}
           <section className="rounded-xl border border-border bg-card p-6">
-            <div className="flex items-center justify-between mb-4">
+            <div className="mb-4 flex items-center justify-between">
               <h2 className="font-display text-xl font-bold">Comments ({comments.length})</h2>
-              <div className="flex gap-1">
-                {(['top', 'newest', 'oldest'] as const).map((s) => (
-                  <Button key={s} variant={sortBy === s ? 'default' : 'ghost'} size="sm" onClick={() => setSortBy(s)} className="text-xs capitalize">
-                    {s === 'top' ? 'Top' : s}
-                  </Button>
-                ))}
-              </div>
+              <span className="text-xs text-muted-foreground">Sorted by top votes</span>
             </div>
 
             {/* Comment form */}
