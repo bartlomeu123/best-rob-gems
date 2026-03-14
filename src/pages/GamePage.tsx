@@ -26,7 +26,7 @@ const GamePage = () => {
   const navigate = useNavigate();
   const { user, isAdmin } = useAuth();
   const queryClient = useQueryClient();
-  const [sortBy, setSortBy] = useState<'top' | 'newest' | 'oldest'>('top');
+  const [sortBy] = useState<'top'>('top');
   const [commentText, setCommentText] = useState('');
   const [selectedPros, setSelectedPros] = useState<string[]>([]);
   const [selectedCons, setSelectedCons] = useState<string[]>([]);
