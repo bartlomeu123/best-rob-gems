@@ -15,7 +15,7 @@ import {
 import { Game } from '@/lib/types';
 import { toast } from 'sonner';
 
-const CATEGORIES = ['adventure', 'rpg', 'simulator', 'horror', 'fighting', 'tycoon', 'obby', 'fps', 'social', 'other'];
+import { ALL_CATEGORIES } from '@/lib/categories';
 
 const AdminPage = () => {
   const { user, isAdmin, loading } = useAuth();
@@ -28,7 +28,7 @@ const AdminPage = () => {
   // Add game form state
   const [addOpen, setAddOpen] = useState(false);
   const [addForm, setAddForm] = useState({
-    title: '', description: '', image: '', category: CATEGORIES[0], tags: '', roblox_link: '',
+    title: '', description: '', image: '', category: ALL_CATEGORIES[0].slug, tags: '', roblox_link: '',
   });
 
   // Edit game state
@@ -99,7 +99,7 @@ const AdminPage = () => {
     });
     if (error) { toast.error('Failed to add game'); return; }
     toast.success('Game added and approved!');
-    setAddForm({ title: '', description: '', image: '', category: CATEGORIES[0], tags: '', roblox_link: '' });
+    setAddForm({ title: '', description: '', image: '', category: ALL_CATEGORIES[0].slug, tags: '', roblox_link: '' });
     setAddOpen(false);
     loadData();
   };
@@ -279,7 +279,7 @@ const AdminPage = () => {
                     value={addForm.category}
                     onChange={e => setAddForm(f => ({ ...f, category: e.target.value }))}
                   >
-                    {CATEGORIES.map(c => <option key={c} value={c} className="capitalize">{c}</option>)}
+                    {ALL_CATEGORIES.map(c => <option key={c.slug} value={c.slug}>{c.name}</option>)}
                   </select>
                   <Input placeholder="Tags (comma separated)" value={addForm.tags} onChange={e => setAddForm(f => ({ ...f, tags: e.target.value }))} />
                   <Input placeholder="Roblox link" value={addForm.roblox_link} onChange={e => setAddForm(f => ({ ...f, roblox_link: e.target.value }))} />
@@ -343,7 +343,7 @@ const AdminPage = () => {
                   value={editForm.category}
                   onChange={e => setEditForm(f => ({ ...f, category: e.target.value }))}
                 >
-                  {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  {ALL_CATEGORIES.map(c => <option key={c.slug} value={c.slug}>{c.name}</option>)}
                 </select>
                 <Input placeholder="Tags (comma separated)" value={editForm.tags} onChange={e => setEditForm(f => ({ ...f, tags: e.target.value }))} />
                 <Input placeholder="Roblox link" value={editForm.roblox_link} onChange={e => setEditForm(f => ({ ...f, roblox_link: e.target.value }))} />

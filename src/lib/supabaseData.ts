@@ -39,6 +39,8 @@ export function dbGameToGame(g: DbGame): Game {
   };
 }
 
+// ---- Game fetchers ----
+
 export async function fetchApprovedGames(): Promise<Game[]> {
   const { data, error } = await supabase
     .from('games')
@@ -179,7 +181,23 @@ export async function adminAddGame(game: {
   return supabase.from('games').insert({ ...game, status: 'approved' });
 }
 
-// Comments
+// ---- Category counts ----
+
+export async function fetchCategoryCounts(): Promise<Record<string, number>> {
+  const { data } = await supabase
+    .from('games')
+    .select('category')
+    .eq('status', 'approved');
+  if (!data) return {};
+  const counts: Record<string, number> = {};
+  for (const row of data) {
+    counts[row.category] = (counts[row.category] || 0) + 1;
+  }
+  return counts;
+}
+
+// ---- Comments ----
+
 export async function fetchComments(gameId: string) {
   const { data } = await supabase
     .from('comments')
@@ -189,7 +207,6 @@ export async function fetchComments(gameId: string) {
 
   if (!data) return [];
 
-  // Fetch admin roles for comment authors
   const userIds = [...new Set(data.map((c: any) => c.user_id))];
   const { data: roles } = await supabase
     .from('user_roles')
@@ -198,7 +215,27 @@ export async function fetchComments(gameId: string) {
     .eq('role', 'admin');
 
   const adminSet = new Set((roles || []).map((r: any) => r.user_id));
-  return data.map((c: any) => ({ ...c, is_admin: adminSet.has(c.user_id) }));
+
+  // Fetch vote counts for all comments
+  const commentIds = data.map((c: any) => c.id);
+  const { data: votes } = await supabase
+    .from('comment_votes')
+    .select('comment_id, vote_type')
+    .in('comment_id', commentIds);
+
+  const voteCounts: Record<string, { up: number; down: number }> = {};
+  for (const v of votes || []) {
+    if (!voteCounts[v.comment_id]) voteCounts[v.comment_id] = { up: 0, down: 0 };
+    if (v.vote_type === 'up') voteCounts[v.comment_id].up++;
+    else voteCounts[v.comment_id].down++;
+  }
+
+  return data.map((c: any) => ({
+    ...c,
+    is_admin: adminSet.has(c.user_id),
+    upvotes: voteCounts[c.id]?.up || 0,
+    downvotes: voteCounts[c.id]?.down || 0,
+  }));
 }
 
 export async function addComment(comment: {
@@ -216,7 +253,53 @@ export async function deleteComment(commentId: string) {
   return supabase.from('comments').delete().eq('id', commentId);
 }
 
-// Comment Reports
+// ---- Comment Votes ----
+
+export async function getUserCommentVote(commentId: string, userId: string) {
+  const { data } = await supabase
+    .from('comment_votes')
+    .select('vote_type')
+    .eq('comment_id', commentId)
+    .eq('user_id', userId)
+    .maybeSingle();
+  return data?.vote_type as 'up' | 'down' | null;
+}
+
+export async function castCommentVote(commentId: string, userId: string, voteType: 'up' | 'down') {
+  const { data: existing } = await supabase
+    .from('comment_votes')
+    .select('id, vote_type')
+    .eq('comment_id', commentId)
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (existing) {
+    if (existing.vote_type === voteType) {
+      return supabase.from('comment_votes').delete().eq('id', existing.id);
+    } else {
+      return supabase.from('comment_votes').update({ vote_type: voteType }).eq('id', existing.id);
+    }
+  } else {
+    return supabase.from('comment_votes').insert({ comment_id: commentId, user_id: userId, vote_type: voteType });
+  }
+}
+
+export async function getUserCommentVotes(commentIds: string[], userId: string) {
+  if (commentIds.length === 0) return {};
+  const { data } = await supabase
+    .from('comment_votes')
+    .select('comment_id, vote_type')
+    .in('comment_id', commentIds)
+    .eq('user_id', userId);
+  const map: Record<string, 'up' | 'down'> = {};
+  for (const v of data || []) {
+    map[v.comment_id] = v.vote_type as 'up' | 'down';
+  }
+  return map;
+}
+
+// ---- Comment Reports ----
+
 export async function reportComment(commentId: string, reportedBy: string, reason: string) {
   return supabase.from('comment_reports').insert({
     comment_id: commentId,
@@ -238,7 +321,8 @@ export async function resolveReport(reportId: string) {
   return supabase.from('comment_reports').update({ resolved: true }).eq('id', reportId);
 }
 
-// Votes
+// ---- Votes (game votes) ----
+
 export async function getUserVote(gameId: string, userId: string) {
   const { data } = await supabase
     .from('votes')
@@ -268,7 +352,8 @@ export async function castVote(gameId: string, userId: string, voteType: 'like' 
   }
 }
 
-// Favorites
+// ---- Favorites ----
+
 export async function toggleFavorite(gameId: string, userId: string) {
   const { data: existing } = await supabase
     .from('favorites')

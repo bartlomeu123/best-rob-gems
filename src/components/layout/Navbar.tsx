@@ -1,9 +1,12 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, Menu, X, Gamepad2, LogOut, User } from 'lucide-react';
+import { Search, Menu, X, Gamepad2, LogOut, User, ChevronDown } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/hooks/useAuth';
+import { useQuery } from '@tanstack/react-query';
+import { fetchCategoryCounts } from '@/lib/supabaseData';
+import { ALL_CATEGORIES } from '@/lib/categories';
 
 const Navbar = () => {
   const [searchOpen, setSearchOpen] = useState(false);
@@ -11,6 +14,15 @@ const Navbar = () => {
   const [query, setQuery] = useState('');
   const navigate = useNavigate();
   const { user, profile, signOut, loading } = useAuth();
+
+  const { data: counts = {} } = useQuery({
+    queryKey: ['categoryCounts'],
+    queryFn: fetchCategoryCounts,
+  });
+
+  const categoriesWithGames = ALL_CATEGORIES
+    .map(cat => ({ ...cat, count: counts[cat.slug] || 0 }))
+    .filter(cat => cat.count > 0);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,6 +46,31 @@ const Navbar = () => {
           <Link to="/top-games" className="text-sm text-muted-foreground transition-colors hover:text-foreground">Top Games</Link>
           <Link to="/trending" className="text-sm text-muted-foreground transition-colors hover:text-foreground">Trending</Link>
           <Link to="/new-games" className="text-sm text-muted-foreground transition-colors hover:text-foreground">New Games</Link>
+          
+          {/* Categories dropdown */}
+          <div className="relative group">
+            <button className="flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground">
+              Categories <ChevronDown className="h-3.5 w-3.5" />
+            </button>
+            <div className="invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-all duration-200 absolute top-full left-1/2 -translate-x-1/2 pt-2 z-50">
+              <div className="w-80 max-h-96 overflow-y-auto rounded-lg border border-border bg-card shadow-xl p-3 grid grid-cols-2 gap-1">
+                {(categoriesWithGames.length > 0 ? categoriesWithGames : ALL_CATEGORIES).map(cat => (
+                  <Link
+                    key={cat.slug}
+                    to={`/category/${cat.slug}`}
+                    className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                  >
+                    <span>{cat.icon}</span>
+                    <span>{cat.name}</span>
+                    {'count' in cat && (cat as any).count > 0 && (
+                      <span className="ml-auto text-xs text-muted-foreground/60">{(cat as any).count}</span>
+                    )}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </div>
+
           <Link to="/add-game" className="text-sm text-muted-foreground transition-colors hover:text-foreground">Add Game</Link>
         </div>
 
@@ -92,6 +129,19 @@ const Navbar = () => {
             <Link to="/trending" className="text-sm text-muted-foreground" onClick={() => setMobileOpen(false)}>Trending</Link>
             <Link to="/new-games" className="text-sm text-muted-foreground" onClick={() => setMobileOpen(false)}>New Games</Link>
             <Link to="/add-game" className="text-sm text-muted-foreground" onClick={() => setMobileOpen(false)}>Add Game</Link>
+            <p className="text-xs font-semibold uppercase text-muted-foreground/60 mt-2">Categories</p>
+            <div className="grid grid-cols-2 gap-1">
+              {(categoriesWithGames.length > 0 ? categoriesWithGames : ALL_CATEGORIES.slice(0, 12)).map(cat => (
+                <Link
+                  key={cat.slug}
+                  to={`/category/${cat.slug}`}
+                  className="flex items-center gap-2 text-sm text-muted-foreground py-1"
+                  onClick={() => setMobileOpen(false)}
+                >
+                  <span>{cat.icon}</span> {cat.name}
+                </Link>
+              ))}
+            </div>
             {user ? (
               <>
                 <Link to={`/user/${profile?.username || 'me'}`} className="text-sm text-muted-foreground" onClick={() => setMobileOpen(false)}>Profile</Link>

@@ -1,6 +1,6 @@
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { getScore, getScoreTextClass, PROS_OPTIONS, CONS_OPTIONS } from '@/lib/types';
-import { ThumbsUp, ThumbsDown, ExternalLink, Heart, Flag, ArrowLeft, Edit, Trash2 } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, ExternalLink, Heart, Flag, ArrowLeft, Edit, Trash2, ChevronUp, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
@@ -8,17 +8,18 @@ import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import GameCard from '@/components/GameCard';
+import CommunityEvaluation from '@/components/CommunityEvaluation';
 import { gameImages } from '@/lib/gameImages';
 import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   fetchGameBySlug, fetchApprovedGames, fetchComments, addComment, castVote,
   getUserVote, toggleFavorite, isFavorited, reportComment, updateGame, deleteComment,
+  castCommentVote, getUserCommentVotes,
 } from '@/lib/supabaseData';
+import { ALL_CATEGORIES } from '@/lib/categories';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
-
-const CATEGORIES = ['adventure', 'rpg', 'simulator', 'horror', 'fighting', 'tycoon', 'obby', 'fps', 'social', 'other'];
 
 const GamePage = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -31,6 +32,7 @@ const GamePage = () => {
   const [selectedCons, setSelectedCons] = useState<string[]>([]);
   const [userVote, setUserVote] = useState<'like' | 'dislike' | null>(null);
   const [isFav, setIsFav] = useState(false);
+  const [commentVotes, setCommentVotes] = useState<Record<string, 'up' | 'down'>>({});
 
   // Admin edit state
   const [editOpen, setEditOpen] = useState(false);
@@ -56,6 +58,13 @@ const GamePage = () => {
       isFavorited(game.id, user.id).then(setIsFav);
     }
   }, [user, game?.id]);
+
+  useEffect(() => {
+    if (user && comments.length > 0) {
+      const ids = comments.map((c: any) => c.id);
+      getUserCommentVotes(ids, user.id).then(setCommentVotes);
+    }
+  }, [user, comments]);
 
   if (isLoading) {
     return <div className="container mx-auto px-4 py-16 text-center"><p className="text-muted-foreground">Loading...</p></div>;
@@ -128,6 +137,14 @@ const GamePage = () => {
     toast.success('Comment reported');
   };
 
+  const handleCommentVote = async (commentId: string, type: 'up' | 'down') => {
+    if (!user) { toast.error('Sign in to vote'); return; }
+    await castCommentVote(commentId, user.id, type);
+    queryClient.invalidateQueries({ queryKey: ['comments', game.id] });
+    const ids = comments.map((c: any) => c.id);
+    getUserCommentVotes(ids, user.id).then(setCommentVotes);
+  };
+
   const openEditDialog = () => {
     setEditForm({
       title: game.title,
@@ -163,6 +180,8 @@ const GamePage = () => {
 
   const togglePro = (pro: string) => setSelectedPros(prev => prev.includes(pro) ? prev.filter(p => p !== pro) : [...prev, pro]);
   const toggleCon = (con: string) => setSelectedCons(prev => prev.includes(con) ? prev.filter(c => c !== con) : [...prev, con]);
+
+  const sortedComments = sortBy === 'oldest' ? [...comments].reverse() : comments;
 
   return (
     <div className="container mx-auto px-4 py-6 space-y-8">
@@ -224,6 +243,9 @@ const GamePage = () => {
             <p className="text-sm text-muted-foreground leading-relaxed">{game.description}</p>
           </section>
 
+          {/* Community Evaluation */}
+          <CommunityEvaluation comments={comments} />
+
           {/* Comments */}
           <section className="rounded-xl border border-border bg-card p-6">
             <div className="flex items-center justify-between mb-4">
@@ -251,7 +273,7 @@ const GamePage = () => {
                 <div>
                   <p className="text-xs font-semibold text-green-400 uppercase mb-2">Select Pros</p>
                   <div className="space-y-1.5">
-                    {PROS_OPTIONS.slice(0, 5).map(pro => (
+                    {PROS_OPTIONS.map(pro => (
                       <label key={pro} className="flex items-center gap-2 text-xs cursor-pointer">
                         <Checkbox checked={selectedPros.includes(pro)} onCheckedChange={() => togglePro(pro)} /> {pro}
                       </label>
@@ -261,7 +283,7 @@ const GamePage = () => {
                 <div>
                   <p className="text-xs font-semibold text-red-400 uppercase mb-2">Select Cons</p>
                   <div className="space-y-1.5">
-                    {CONS_OPTIONS.slice(0, 5).map(con => (
+                    {CONS_OPTIONS.map(con => (
                       <label key={con} className="flex items-center gap-2 text-xs cursor-pointer">
                         <Checkbox checked={selectedCons.includes(con)} onCheckedChange={() => toggleCon(con)} /> {con}
                       </label>
@@ -274,59 +296,91 @@ const GamePage = () => {
 
             {/* Comment list */}
             <div className="space-y-4">
-              {(sortBy === 'oldest' ? [...comments].reverse() : comments).map((comment: any) => (
-                <div key={comment.id} className="rounded-lg border border-border bg-secondary/30 p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary">
-                        {(comment.profiles?.username || 'U')[0].toUpperCase()}
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-sm font-semibold">{comment.profiles?.username || 'Anonymous'}</span>
-                          {comment.is_admin && (
-                            <Badge variant="default" className="text-[10px] px-1.5 py-0 h-4 font-semibold">Admin</Badge>
-                          )}
-                        </div>
-                        <span className="text-xs text-muted-foreground">{new Date(comment.created_at).toLocaleDateString()}</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      {user && user.id !== comment.user_id && (
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => handleReport(comment.id)} title="Report">
-                          <Flag className="h-3.5 w-3.5" />
-                        </Button>
-                      )}
-                      {isAdmin && (
+              {sortedComments.map((comment: any) => {
+                const netVotes = (comment.upvotes || 0) - (comment.downvotes || 0);
+                const myVote = commentVotes[comment.id];
+                return (
+                  <div key={comment.id} className="rounded-lg border border-border bg-secondary/30 p-4">
+                    <div className="flex gap-3">
+                      {/* Vote column */}
+                      <div className="flex flex-col items-center gap-0.5 min-w-[36px]">
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                          title="Delete comment"
-                          onClick={async () => {
-                            await deleteComment(comment.id);
-                            toast.success('Comment deleted');
-                            queryClient.invalidateQueries({ queryKey: ['comments', game.id] });
-                          }}
+                          className={`h-7 w-7 ${myVote === 'up' ? 'text-primary' : 'text-muted-foreground'}`}
+                          onClick={() => handleCommentVote(comment.id, 'up')}
                         >
-                          <Trash2 className="h-3.5 w-3.5" />
+                          <ChevronUp className="h-5 w-5" />
                         </Button>
-                      )}
+                        <span className={`text-xs font-bold ${netVotes > 0 ? 'text-primary' : netVotes < 0 ? 'text-destructive' : 'text-muted-foreground'}`}>
+                          {netVotes}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className={`h-7 w-7 ${myVote === 'down' ? 'text-destructive' : 'text-muted-foreground'}`}
+                          onClick={() => handleCommentVote(comment.id, 'down')}
+                        >
+                          <ChevronDown className="h-5 w-5" />
+                        </Button>
+                      </div>
+
+                      {/* Comment content */}
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary">
+                              {(comment.profiles?.username || 'U')[0].toUpperCase()}
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-sm font-semibold">{comment.profiles?.username || 'Anonymous'}</span>
+                                {comment.is_admin && (
+                                  <Badge variant="default" className="text-[10px] px-1.5 py-0 h-4 font-semibold">Admin</Badge>
+                                )}
+                              </div>
+                              <span className="text-xs text-muted-foreground">{new Date(comment.created_at).toLocaleDateString()}</span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            {user && user.id !== comment.user_id && (
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => handleReport(comment.id)} title="Report">
+                                <Flag className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
+                            {isAdmin && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                title="Delete comment"
+                                onClick={async () => {
+                                  await deleteComment(comment.id);
+                                  toast.success('Comment deleted');
+                                  queryClient.invalidateQueries({ queryKey: ['comments', game.id] });
+                                }}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                        <p className="mt-2 text-sm text-muted-foreground">{comment.text}</p>
+                        {(comment.pros?.length > 0 || comment.cons?.length > 0) && (
+                          <div className="mt-2 flex flex-wrap gap-1">
+                            {comment.pros?.map((p: string) => (
+                              <Badge key={p} variant="secondary" className="text-xs text-green-400">✓ {p}</Badge>
+                            ))}
+                            {comment.cons?.map((c: string) => (
+                              <Badge key={c} variant="secondary" className="text-xs text-red-400">✗ {c}</Badge>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
-                  <p className="mt-2 text-sm text-muted-foreground">{comment.text}</p>
-                  {(comment.pros?.length > 0 || comment.cons?.length > 0) && (
-                    <div className="mt-2 flex flex-wrap gap-1">
-                      {comment.pros?.map((p: string) => (
-                        <Badge key={p} variant="secondary" className="text-xs text-green-400">✓ {p}</Badge>
-                      ))}
-                      {comment.cons?.map((c: string) => (
-                        <Badge key={c} variant="secondary" className="text-xs text-red-400">✗ {c}</Badge>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
           </section>
         </div>
@@ -385,7 +439,7 @@ const GamePage = () => {
               value={editForm.category}
               onChange={e => setEditForm(f => ({ ...f, category: e.target.value }))}
             >
-              {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+              {ALL_CATEGORIES.map(c => <option key={c.slug} value={c.slug}>{c.name}</option>)}
             </select>
             <Input placeholder="Tags (comma separated)" value={editForm.tags} onChange={e => setEditForm(f => ({ ...f, tags: e.target.value }))} />
             <Input placeholder="Roblox link" value={editForm.roblox_link} onChange={e => setEditForm(f => ({ ...f, roblox_link: e.target.value }))} />
