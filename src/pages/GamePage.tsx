@@ -13,7 +13,7 @@ import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   fetchGameBySlug, fetchApprovedGames, fetchComments, addComment, castVote,
-  getUserVote, toggleFavorite, isFavorited, reportComment, updateGame,
+  getUserVote, toggleFavorite, isFavorited, reportComment, updateGame, deleteComment,
 } from '@/lib/supabaseData';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
