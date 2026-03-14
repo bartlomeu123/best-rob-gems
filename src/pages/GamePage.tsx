@@ -188,14 +188,6 @@ const GamePage = () => {
   const toggleCon = (con: string) => setSelectedCons(prev => prev.includes(con) ? prev.filter(c => c !== con) : [...prev, con]);
 
   const sortedComments = [...comments].sort((a: any, b: any) => {
-    if (sortBy === 'newest') {
-      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-    }
-
-    if (sortBy === 'oldest') {
-      return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-    }
-
     const scoreDiff = (b.upvotes - b.downvotes) - (a.upvotes - a.downvotes);
     if (scoreDiff !== 0) return scoreDiff;
     return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
