@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { Game } from './types';
+import { FeatureOption } from './gameFeatures';
 
 export interface DbGame {
   id: string;
@@ -17,6 +18,9 @@ export interface DbGame {
   votes_last_24h: number;
   rank_change: number;
   created_at: string;
+  submitter_type: 'regular' | 'developer' | null;
+  contact_email: string | null;
+  contact_other: string | null;
 }
 
 export function dbGameToGame(g: DbGame): Game {
@@ -36,6 +40,9 @@ export function dbGameToGame(g: DbGame): Game {
     status: g.status as 'pending' | 'approved' | 'rejected',
     votesLast24h: g.votes_last_24h,
     rankChange: g.rank_change,
+    submitterType: (g.submitter_type as 'regular' | 'developer' | null) || 'regular',
+    contactEmail: g.contact_email || undefined,
+    contactOther: g.contact_other || undefined,
   };
 }
 
@@ -140,8 +147,28 @@ export async function submitGame(game: {
   roblox_link?: string;
   image?: string;
   submitted_by: string;
+  submitter_type?: 'regular' | 'developer';
+  contact_email?: string;
+  contact_other?: string;
+  feature_ids?: string[];
 }) {
-  return supabase.from('games').insert({ ...game, status: 'pending' });
+  const { feature_ids = [], ...gamePayload } = game;
+
+  const { data, error } = await supabase
+    .from('games')
+    .insert({ ...gamePayload, status: 'pending' })
+    .select('id')
+    .single();
+
+  if (error || !data) return { data: null, error };
+
+  if (feature_ids.length > 0) {
+    const featureRows = feature_ids.map((featureId) => ({ game_id: data.id, feature_id: featureId }));
+    const { error: featureError } = await supabase.from('game_features').insert(featureRows);
+    if (featureError) return { data: null, error: featureError };
+  }
+
+  return { data, error: null };
 }
 
 export async function approveGame(gameId: string) {
@@ -164,8 +191,28 @@ export async function updateGame(gameId: string, updates: {
   tags?: string[];
   roblox_link?: string;
   slug?: string;
+  submitter_type?: 'regular' | 'developer';
+  contact_email?: string;
+  contact_other?: string;
+  feature_ids?: string[];
 }) {
-  return supabase.from('games').update(updates).eq('id', gameId);
+  const { feature_ids, ...gameUpdates } = updates;
+
+  const updateResult = await supabase.from('games').update(gameUpdates).eq('id', gameId);
+  if (updateResult.error) return updateResult;
+
+  if (feature_ids) {
+    const { error: clearError } = await supabase.from('game_features').delete().eq('game_id', gameId);
+    if (clearError) return { data: null, error: clearError };
+
+    if (feature_ids.length > 0) {
+      const rows = feature_ids.map((featureId) => ({ game_id: gameId, feature_id: featureId }));
+      const { error: insertError } = await supabase.from('game_features').insert(rows);
+      if (insertError) return { data: null, error: insertError };
+    }
+  }
+
+  return updateResult;
 }
 
 export async function adminAddGame(game: {
@@ -177,8 +224,28 @@ export async function adminAddGame(game: {
   roblox_link?: string;
   image?: string;
   submitted_by: string;
+  submitter_type?: 'regular' | 'developer';
+  contact_email?: string;
+  contact_other?: string;
+  feature_ids?: string[];
 }) {
-  return supabase.from('games').insert({ ...game, status: 'approved' });
+  const { feature_ids = [], ...gamePayload } = game;
+
+  const { data, error } = await supabase
+    .from('games')
+    .insert({ ...gamePayload, status: 'approved' })
+    .select('id')
+    .single();
+
+  if (error || !data) return { data: null, error };
+
+  if (feature_ids.length > 0) {
+    const rows = feature_ids.map((featureId) => ({ game_id: data.id, feature_id: featureId }));
+    const { error: featureError } = await supabase.from('game_features').insert(rows);
+    if (featureError) return { data: null, error: featureError };
+  }
+
+  return { data, error: null };
 }
 
 // ---- Category counts ----
@@ -194,6 +261,65 @@ export async function fetchCategoryCounts(): Promise<Record<string, number>> {
     counts[row.category] = (counts[row.category] || 0) + 1;
   }
   return counts;
+}
+
+export async function fetchFeatureOptions(): Promise<FeatureOption[]> {
+  const { data } = await supabase
+    .from('features')
+    .select('id, name')
+    .order('name', { ascending: true });
+
+  return (data || []) as FeatureOption[];
+}
+
+export async function fetchGameFeatures(gameId: string): Promise<FeatureOption[]> {
+  const { data } = await supabase
+    .from('game_features')
+    .select('feature_id, features(name)')
+    .eq('game_id', gameId);
+
+  if (!data) return [];
+
+  return (data as any[])
+    .map((row) => ({
+      id: row.feature_id,
+      name: row.features?.name,
+    }))
+    .filter((item) => !!item.name) as FeatureOption[];
+}
+
+export async function fetchGamesBySubmitter(userId: string): Promise<Game[]> {
+  const { data } = await supabase
+    .from('games')
+    .select('*')
+    .eq('submitted_by', userId)
+    .order('created_at', { ascending: false });
+
+  if (!data) return [];
+  return (data as unknown as DbGame[]).map(dbGameToGame);
+}
+
+export async function fetchFavoritedGames(userId: string): Promise<Game[]> {
+  const { data: favorites } = await supabase
+    .from('favorites')
+    .select('game_id, created_at')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+
+  if (!favorites || favorites.length === 0) return [];
+
+  const gameIds = favorites.map((f: any) => f.game_id);
+
+  const { data: games } = await supabase
+    .from('games')
+    .select('*')
+    .in('id', gameIds);
+
+  if (!games) return [];
+
+  const mapped = (games as unknown as DbGame[]).map(dbGameToGame);
+  const orderMap = new Map(gameIds.map((id: string, index: number) => [id, index]));
+  return mapped.sort((a, b) => (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0));
 }
 
 // ---- Comments ----
@@ -230,12 +356,18 @@ export async function fetchComments(gameId: string) {
     else voteCounts[v.comment_id].down++;
   }
 
-  return data.map((c: any) => ({
+  const enrichedComments = data.map((c: any) => ({
     ...c,
     is_admin: adminSet.has(c.user_id),
     upvotes: voteCounts[c.id]?.up || 0,
     downvotes: voteCounts[c.id]?.down || 0,
   }));
+
+  return enrichedComments.sort((a: any, b: any) => {
+    const scoreDiff = (b.upvotes - b.downvotes) - (a.upvotes - a.downvotes);
+    if (scoreDiff !== 0) return scoreDiff;
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+  });
 }
 
 export async function addComment(comment: {

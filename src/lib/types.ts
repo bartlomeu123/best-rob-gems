@@ -14,6 +14,9 @@ export interface Game {
   status: 'pending' | 'approved' | 'rejected';
   votesLast24h: number;
   rankChange: number; // positive = rising, negative = falling
+  submitterType?: 'regular' | 'developer';
+  contactEmail?: string;
+  contactOther?: string;
 }
 
 export interface Comment {

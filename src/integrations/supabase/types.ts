@@ -168,9 +168,65 @@ export type Database = {
           },
         ]
       }
+      features: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      game_features: {
+        Row: {
+          created_at: string
+          feature_id: string
+          game_id: string
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          feature_id: string
+          game_id: string
+          id?: string
+        }
+        Update: {
+          created_at?: string
+          feature_id?: string
+          game_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "game_features_feature_id_fkey"
+            columns: ["feature_id"]
+            isOneToOne: false
+            referencedRelation: "features"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "game_features_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       games: {
         Row: {
           category: string
+          contact_email: string | null
+          contact_other: string | null
           created_at: string
           description: string | null
           dislikes: number
@@ -182,6 +238,7 @@ export type Database = {
           slug: string
           status: string
           submitted_by: string | null
+          submitter_type: string
           tags: string[] | null
           title: string
           updated_at: string
@@ -189,6 +246,8 @@ export type Database = {
         }
         Insert: {
           category: string
+          contact_email?: string | null
+          contact_other?: string | null
           created_at?: string
           description?: string | null
           dislikes?: number
@@ -200,6 +259,7 @@ export type Database = {
           slug: string
           status?: string
           submitted_by?: string | null
+          submitter_type?: string
           tags?: string[] | null
           title: string
           updated_at?: string
@@ -207,6 +267,8 @@ export type Database = {
         }
         Update: {
           category?: string
+          contact_email?: string | null
+          contact_other?: string | null
           created_at?: string
           description?: string | null
           dislikes?: number
@@ -218,6 +280,7 @@ export type Database = {
           slug?: string
           status?: string
           submitted_by?: string | null
+          submitter_type?: string
           tags?: string[] | null
           title?: string
           updated_at?: string

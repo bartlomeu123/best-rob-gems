@@ -1,6 +1,6 @@
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { getScore, getScoreTextClass, PROS_OPTIONS, CONS_OPTIONS } from '@/lib/types';
-import { ThumbsUp, ThumbsDown, ExternalLink, Heart, Flag, ArrowLeft, Edit, Trash2, ChevronUp, ChevronDown } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, ExternalLink, Heart, Flag, ArrowLeft, Edit, Trash2, ChevronUp, ChevronDown, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
@@ -15,7 +15,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   fetchGameBySlug, fetchApprovedGames, fetchComments, addComment, castVote,
   getUserVote, toggleFavorite, isFavorited, reportComment, updateGame, deleteComment,
-  castCommentVote, getUserCommentVotes,
+  castCommentVote, getUserCommentVotes, fetchGameFeatures,
 } from '@/lib/supabaseData';
 import { ALL_CATEGORIES } from '@/lib/categories';
 import { useAuth } from '@/hooks/useAuth';
@@ -26,7 +26,7 @@ const GamePage = () => {
   const navigate = useNavigate();
   const { user, isAdmin } = useAuth();
   const queryClient = useQueryClient();
-  const [sortBy, setSortBy] = useState<'likes' | 'newest' | 'oldest'>('newest');
+  
   const [commentText, setCommentText] = useState('');
   const [selectedPros, setSelectedPros] = useState<string[]>([]);
   const [selectedCons, setSelectedCons] = useState<string[]>([]);
@@ -49,6 +49,12 @@ const GamePage = () => {
   const { data: comments = [] } = useQuery({
     queryKey: ['comments', game?.id],
     queryFn: () => fetchComments(game!.id),
+    enabled: !!game?.id,
+  });
+
+  const { data: gameFeatures = [] } = useQuery({
+    queryKey: ['gameFeatures', game?.id],
+    queryFn: () => fetchGameFeatures(game!.id),
     enabled: !!game?.id,
   });
 
@@ -181,7 +187,11 @@ const GamePage = () => {
   const togglePro = (pro: string) => setSelectedPros(prev => prev.includes(pro) ? prev.filter(p => p !== pro) : [...prev, pro]);
   const toggleCon = (con: string) => setSelectedCons(prev => prev.includes(con) ? prev.filter(c => c !== con) : [...prev, con]);
 
-  const sortedComments = sortBy === 'oldest' ? [...comments].reverse() : comments;
+  const sortedComments = [...comments].sort((a: any, b: any) => {
+    const scoreDiff = (b.upvotes - b.downvotes) - (a.upvotes - a.downvotes);
+    if (scoreDiff !== 0) return scoreDiff;
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+  });
 
   return (
     <div className="container mx-auto px-4 py-6 space-y-8">
@@ -248,15 +258,9 @@ const GamePage = () => {
 
           {/* Comments */}
           <section className="rounded-xl border border-border bg-card p-6">
-            <div className="flex items-center justify-between mb-4">
+            <div className="mb-4 flex items-center justify-between">
               <h2 className="font-display text-xl font-bold">Comments ({comments.length})</h2>
-              <div className="flex gap-1">
-                {(['newest', 'oldest'] as const).map(s => (
-                  <Button key={s} variant={sortBy === s ? 'default' : 'ghost'} size="sm" onClick={() => setSortBy(s)} className="text-xs capitalize">
-                    {s}
-                  </Button>
-                ))}
-              </div>
+              <span className="text-xs text-muted-foreground">Sorted by top votes</span>
             </div>
 
             {/* Comment form */}
@@ -387,6 +391,20 @@ const GamePage = () => {
 
         {/* Sidebar */}
         <div className="space-y-6">
+          {gameFeatures.length > 0 && (
+            <section className="rounded-xl border border-border bg-card p-4">
+              <h3 className="font-display text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3">Game Features</h3>
+              <ul className="space-y-2">
+                {gameFeatures.map((feature) => (
+                  <li key={feature.id} className="flex items-center gap-2 text-sm text-foreground">
+                    <Check className="h-4 w-4 text-primary" />
+                    <span>{feature.name}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
           <section className="rounded-xl border border-border bg-card p-4">
             <h3 className="font-display text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3">Tags</h3>
             <div className="flex flex-wrap gap-2">
