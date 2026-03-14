@@ -39,6 +39,9 @@ export function dbGameToGame(g: DbGame): Game {
     status: g.status as 'pending' | 'approved' | 'rejected',
     votesLast24h: g.votes_last_24h,
     rankChange: g.rank_change,
+    submitterType: (g.submitter_type as 'regular' | 'developer' | null) || 'regular',
+    contactEmail: g.contact_email || undefined,
+    contactOther: g.contact_other || undefined,
   };
 }
 
