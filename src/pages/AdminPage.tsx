@@ -15,7 +15,7 @@ import {
 import { Game } from '@/lib/types';
 import { toast } from 'sonner';
 
-const CATEGORIES = ['adventure', 'rpg', 'simulator', 'horror', 'fighting', 'tycoon', 'obby', 'fps', 'social', 'other'];
+import { ALL_CATEGORIES } from '@/lib/categories';
 
 const AdminPage = () => {
   const { user, isAdmin, loading } = useAuth();
