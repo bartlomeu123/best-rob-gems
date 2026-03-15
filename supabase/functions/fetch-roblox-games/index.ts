@@ -6,13 +6,6 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-interface RobloxGame {
-  universeId: number;
-  name: string;
-  rootPlaceId: number;
-  gameDescription?: string;
-}
-
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -23,98 +16,32 @@ Deno.serve(async (req) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    // Fetch popular games from Roblox Charts API
-    const chartsRes = await fetch(
-      "https://games.roblox.com/v1/games/list?sortToken=&sortOrder=Desc&limit=50"
-    );
-
-    let gamesList: RobloxGame[] = [];
-
-    if (!chartsRes.ok) {
-      // Fallback: use the sorts endpoint to get a valid sort token
-      const sortsRes = await fetch("https://games.roblox.com/v1/games/sorts?GameSortsContext=HomeSorts");
-      if (sortsRes.ok) {
-        const sortsData = await sortsRes.json();
-        const popularSort = sortsData.sorts?.find((s: any) =>
-          s.name === "Most Popular" || s.displayName === "Most Popular"
-        );
-        if (popularSort) {
-          const listRes = await fetch(
-            `https://games.roblox.com/v1/games/list?sortToken=${popularSort.token}&limit=50`
-          );
-          if (listRes.ok) {
-            const listData = await listRes.json();
-            gamesList = (listData.games || []).map((g: any) => ({
-              universeId: g.universeId,
-              name: g.name,
-              rootPlaceId: g.placeId || g.rootPlaceId,
-              gameDescription: g.gameDescription,
-            }));
-          }
-        }
-      }
-    } else {
-      const chartsData = await chartsRes.json();
-      gamesList = (chartsData.games || []).map((g: any) => ({
-        universeId: g.universeId,
-        name: g.name,
-        rootPlaceId: g.placeId || g.rootPlaceId,
-        gameDescription: g.gameDescription,
-      }));
-    }
-
-    if (gamesList.length === 0) {
-      // Last resort: use the v1/games/multiget endpoint with known popular universe IDs
-      // Or try the discover page API
-      const discoverRes = await fetch(
-        "https://games.roblox.com/v1/games/sorts?GameSortsContext=GamesDefaultSorts"
-      );
-      if (discoverRes.ok) {
-        const discoverData = await discoverRes.json();
-        for (const sort of (discoverData.sorts || []).slice(0, 3)) {
-          const listRes = await fetch(
-            `https://games.roblox.com/v1/games/list?sortToken=${sort.token}&limit=25`
-          );
-          if (listRes.ok) {
-            const listData = await listRes.json();
-            for (const g of (listData.games || [])) {
-              if (!gamesList.find((x) => x.universeId === g.universeId)) {
-                gamesList.push({
-                  universeId: g.universeId,
-                  name: g.name,
-                  rootPlaceId: g.placeId || g.rootPlaceId,
-                  gameDescription: g.gameDescription,
-                });
-              }
-            }
-          }
-        }
-      }
-    }
-
-    if (gamesList.length === 0) {
+    // Use Rolimons game list API which provides popular Roblox games
+    const roliRes = await fetch("https://api.rolimons.com/games/v1/gamelist");
+    if (!roliRes.ok) {
       return new Response(
-        JSON.stringify({ message: "No games fetched from Roblox API" }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: "Failed to fetch from Rolimons API" }),
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Fetch thumbnails
-    const universeIds = gamesList.map((g) => g.universeId).join(",");
-    const thumbRes = await fetch(
-      `https://thumbnails.roblox.com/v1/games/icons?universeIds=${universeIds}&returnPolicy=PlaceHolder&size=512x512&format=Png&isCircular=false`
-    );
-    const thumbMap: Record<number, string> = {};
-    if (thumbRes.ok) {
-      const thumbData = await thumbRes.json();
-      for (const item of thumbData.data || []) {
-        if (item.state === "Completed" && item.imageUrl) {
-          thumbMap[item.targetId] = item.imageUrl;
-        }
-      }
+    const roliData = await roliRes.json();
+    if (!roliData.success || !roliData.games) {
+      return new Response(
+        JSON.stringify({ error: "Invalid response from Rolimons" }),
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
-    // Get existing roblox_game_ids to skip duplicates
+    // roliData.games is an object: { placeId: [name, playerCount?, iconUrl?] }
+    // Sort by player count (index 1) descending and take top 50
+    const gameEntries = Object.entries(roliData.games) as [string, any[]][];
+    const sorted = gameEntries
+      .filter(([_, vals]) => vals && vals[0])
+      .sort((a, b) => (b[1][1] || 0) - (a[1][1] || 0))
+      .slice(0, 50);
+
+    // Get existing roblox_game_ids
     const { data: existing } = await supabase
       .from("games")
       .select("roblox_game_id")
@@ -124,12 +51,49 @@ Deno.serve(async (req) => {
       (existing || []).map((r: any) => Number(r.roblox_game_id))
     );
 
-    // Insert new games
-    let inserted = 0;
-    for (const game of gamesList) {
-      if (existingIds.has(game.universeId)) continue;
+    // Collect place IDs for thumbnail fetch
+    const placeIds = sorted.map(([pid]) => pid);
+    
+    // Fetch thumbnails using Roblox thumbnails API (by place IDs)
+    const thumbMap: Record<string, string> = {};
+    // The rolimons data may include icon URLs at index 2
+    for (const [pid, vals] of sorted) {
+      if (vals[2]) {
+        thumbMap[pid] = vals[2];
+      }
+    }
 
-      const slug = game.name
+    // If rolimons doesn't have icons, try Roblox thumbnails API
+    const missingThumbIds = placeIds.filter((pid) => !thumbMap[pid]);
+    if (missingThumbIds.length > 0) {
+      // Batch in groups of 50
+      for (let i = 0; i < missingThumbIds.length; i += 50) {
+        const batch = missingThumbIds.slice(i, i + 50).join(",");
+        try {
+          const thumbRes = await fetch(
+            `https://thumbnails.roblox.com/v1/places/gameicons?placeIds=${batch}&returnPolicy=PlaceHolder&size=512x512&format=Png&isCircular=false`
+          );
+          if (thumbRes.ok) {
+            const thumbData = await thumbRes.json();
+            for (const item of thumbData.data || []) {
+              if (item.state === "Completed" && item.imageUrl) {
+                thumbMap[String(item.targetId)] = item.imageUrl;
+              }
+            }
+          }
+        } catch {
+          // ignore thumbnail errors
+        }
+      }
+    }
+
+    let inserted = 0;
+    for (const [placeId, vals] of sorted) {
+      const numericId = Number(placeId);
+      if (existingIds.has(numericId)) continue;
+
+      const name = vals[0] as string;
+      const slug = name
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/^-|-$/g, "")
@@ -142,18 +106,18 @@ Deno.serve(async (req) => {
         .eq("slug", slug)
         .maybeSingle();
 
-      const finalSlug = slugCheck ? `${slug}-${game.universeId}` : slug;
+      const finalSlug = slugCheck ? `${slug}-${placeId}` : slug;
 
       const { error } = await supabase.from("games").insert({
-        title: game.name,
+        title: name,
         slug: finalSlug,
-        image: thumbMap[game.universeId] || null,
-        description: game.gameDescription || `Play ${game.name} on Roblox!`,
+        image: thumbMap[placeId] || null,
+        description: `Play ${name} on Roblox!`,
         category: "Casual",
         tags: [],
-        roblox_link: `https://www.roblox.com/games/${game.rootPlaceId}`,
+        roblox_link: `https://www.roblox.com/games/${placeId}`,
         status: "approved",
-        roblox_game_id: game.universeId,
+        roblox_game_id: numericId,
         submitter_type: "regular",
       });
 
@@ -162,7 +126,7 @@ Deno.serve(async (req) => {
 
     return new Response(
       JSON.stringify({
-        message: `Fetched ${gamesList.length} games, inserted ${inserted} new games`,
+        message: `Fetched ${sorted.length} games, inserted ${inserted} new games`,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
