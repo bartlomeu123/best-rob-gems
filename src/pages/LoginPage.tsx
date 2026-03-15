@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Gamepad2 } from 'lucide-react';
+import { Gamepad2, ArrowLeft } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
@@ -9,7 +9,7 @@ import { lovable } from '@/integrations/lovable';
 import { toast } from 'sonner';
 
 const LoginPage = () => {
-  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
+  const [mode, setMode] = useState<'signin' | 'signup' | 'forgot' | 'signup-success'>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
@@ -41,7 +41,7 @@ const LoginPage = () => {
           },
         });
         if (error) throw error;
-        toast.success('Account created! Check your email to verify.');
+        setMode('signup-success');
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
@@ -49,6 +49,22 @@ const LoginPage = () => {
       }
     } catch (err: any) {
       toast.error(err.message || 'Authentication failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (error) throw error;
+      toast.success('Password reset link sent! Check your email.');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to send reset email');
     } finally {
       setLoading(false);
     }
@@ -67,6 +83,47 @@ const LoginPage = () => {
       setLoading(false);
     }
   };
+
+  if (mode === 'signup-success') {
+    return (
+      <div className="container mx-auto flex min-h-[70vh] items-center justify-center px-4">
+        <div className="w-full max-w-sm rounded-xl border border-border bg-card p-8 space-y-6 text-center">
+          <Gamepad2 className="mx-auto h-10 w-10 text-primary mb-2" />
+          <h1 className="font-display text-2xl font-bold">Check Your Email</h1>
+          <p className="text-sm text-muted-foreground">
+            We've sent a verification link to <strong>{email}</strong>. Please click the link in the email to activate your account.
+          </p>
+          <p className="text-xs text-muted-foreground">Didn't receive it? Check your spam folder.</p>
+          <Button variant="secondary" className="w-full" onClick={() => setMode('signin')}>
+            Back to Sign In
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (mode === 'forgot') {
+    return (
+      <div className="container mx-auto flex min-h-[70vh] items-center justify-center px-4">
+        <div className="w-full max-w-sm rounded-xl border border-border bg-card p-8 space-y-6">
+          <div className="text-center">
+            <Gamepad2 className="mx-auto h-10 w-10 text-primary mb-2" />
+            <h1 className="font-display text-2xl font-bold">Reset Password</h1>
+            <p className="text-sm text-muted-foreground mt-1">Enter your email to receive a reset link</p>
+          </div>
+          <form onSubmit={handleForgotPassword} className="space-y-3">
+            <Input placeholder="Email address" type="email" className="bg-secondary" value={email} onChange={e => setEmail(e.target.value)} required />
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? 'Sending...' : 'Send Reset Link'}
+            </Button>
+          </form>
+          <button onClick={() => setMode('signin')} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary mx-auto">
+            <ArrowLeft className="h-3 w-3" /> Back to Sign In
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto flex min-h-[70vh] items-center justify-center px-4">
@@ -106,6 +163,12 @@ const LoginPage = () => {
             {loading ? 'Loading...' : mode === 'signin' ? 'Sign In' : 'Sign Up'}
           </Button>
         </form>
+
+        {mode === 'signin' && (
+          <button onClick={() => setMode('forgot')} className="block w-full text-center text-xs text-muted-foreground hover:text-primary">
+            Forgot your password?
+          </button>
+        )}
 
         <p className="text-center text-xs text-muted-foreground">
           {mode === 'signin' ? (
