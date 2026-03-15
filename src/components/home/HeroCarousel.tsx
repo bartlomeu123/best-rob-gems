@@ -23,7 +23,7 @@ const HeroCarousel = ({ games }: HeroCarouselProps) => {
   const game = featured[current];
   const score = getScore(game.likes, game.dislikes);
   const scoreClass = getScoreColor(score);
-  const imgSrc = gameImages[game.slug] || '/placeholder.svg';
+  const imgSrc = game.image || gameImages[game.slug] || '/placeholder.svg';
 
   return (
     <section className="relative overflow-hidden rounded-xl border border-border">
