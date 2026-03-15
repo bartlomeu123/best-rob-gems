@@ -234,6 +234,7 @@ export type Database = {
           image: string | null
           likes: number
           rank_change: number
+          roblox_game_id: number | null
           roblox_link: string | null
           slug: string
           status: string
@@ -255,6 +256,7 @@ export type Database = {
           image?: string | null
           likes?: number
           rank_change?: number
+          roblox_game_id?: number | null
           roblox_link?: string | null
           slug: string
           status?: string
@@ -276,6 +278,7 @@ export type Database = {
           image?: string | null
           likes?: number
           rank_change?: number
+          roblox_game_id?: number | null
           roblox_link?: string | null
           slug?: string
           status?: string

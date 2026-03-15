@@ -13,7 +13,7 @@ interface GameCardProps {
 const GameCard = ({ game, rank, showRankChange }: GameCardProps) => {
   const score = getScore(game.likes, game.dislikes);
   const scoreClass = getScoreColor(score);
-  const imgSrc = gameImages[game.slug] || '/placeholder.svg';
+  const imgSrc = game.image || gameImages[game.slug] || '/placeholder.svg';
 
   return (
     <div className="group card-hover rounded-lg border border-border bg-card overflow-hidden">

@@ -1,0 +1,1 @@
+ALTER TABLE public.games ADD COLUMN roblox_game_id bigint UNIQUE;
