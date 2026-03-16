@@ -16,108 +16,126 @@ Deno.serve(async (req) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    // Use Rolimons game list API which provides popular Roblox games
-    const roliRes = await fetch("https://api.rolimons.com/games/v1/gamelist");
-    if (!roliRes.ok) {
-      return new Response(
-        JSON.stringify({ error: "Failed to fetch from Rolimons API" }),
-        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const roliData = await roliRes.json();
-    if (!roliData.success || !roliData.games) {
-      return new Response(
-        JSON.stringify({ error: "Invalid response from Rolimons" }),
-        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // roliData.games is an object: { placeId: [name, playerCount?, iconUrl?] }
-    // Sort by player count (index 1) descending and take top 50
-    const gameEntries = Object.entries(roliData.games) as [string, any[]][];
-    const sorted = gameEntries
-      .filter(([_, vals]) => vals && vals[0])
-      .sort((a, b) => (b[1][1] || 0) - (a[1][1] || 0))
-      .slice(0, 50);
-
-    // Get existing roblox_game_ids
+    // Get existing roblox_game_ids to skip duplicates
     const { data: existing } = await supabase
       .from("games")
       .select("roblox_game_id")
       .not("roblox_game_id", "is", null);
-
     const existingIds = new Set(
       (existing || []).map((r: any) => Number(r.roblox_game_id))
     );
 
-    // Collect place IDs for thumbnail fetch
-    const placeIds = sorted.map(([pid]) => pid);
-    
-    // Fetch thumbnails using Roblox thumbnails API (by place IDs)
-    const thumbMap: Record<string, string> = {};
-    // The rolimons data may include icon URLs at index 2
-    for (const [pid, vals] of sorted) {
-      if (vals[2]) {
-        thumbMap[pid] = vals[2];
-      }
-    }
-
-    // If rolimons doesn't have icons, try Roblox thumbnails API
-    const missingThumbIds = placeIds.filter((pid) => !thumbMap[pid]);
-    if (missingThumbIds.length > 0) {
-      // Batch in groups of 50
-      for (let i = 0; i < missingThumbIds.length; i += 50) {
-        const batch = missingThumbIds.slice(i, i + 50).join(",");
-        try {
-          const thumbRes = await fetch(
-            `https://thumbnails.roblox.com/v1/places/gameicons?placeIds=${batch}&returnPolicy=PlaceHolder&size=512x512&format=Png&isCircular=false`
-          );
-          if (thumbRes.ok) {
-            const thumbData = await thumbRes.json();
-            for (const item of thumbData.data || []) {
-              if (item.state === "Completed" && item.imageUrl) {
-                thumbMap[String(item.targetId)] = item.imageUrl;
-              }
-            }
-          }
-        } catch {
-          // ignore thumbnail errors
+    // Fetch games from multiple Roblox API sort endpoints to get diverse games
+    const sortTokens: string[] = [];
+    try {
+      const sortsRes = await fetch("https://games.roblox.com/v1/games/sorts?GameSortsContext=HomeSorts");
+      if (sortsRes.ok) {
+        const sortsData = await sortsRes.json();
+        for (const sort of (sortsData.sorts || []).slice(0, 5)) {
+          if (sort.token) sortTokens.push(sort.token);
         }
       }
+    } catch { /* ignore */ }
+
+    // Collect universe IDs from multiple sort lists
+    const universeSet = new Map<number, { name: string; rootPlaceId: number }>();
+
+    for (const token of sortTokens) {
+      try {
+        const listRes = await fetch(
+          `https://games.roblox.com/v1/games/list?sortToken=${token}&startRows=0&maxRows=25`
+        );
+        if (listRes.ok) {
+          const listData = await listRes.json();
+          for (const game of listData.games || []) {
+            if (game.universeId && game.name && !universeSet.has(game.universeId)) {
+              universeSet.set(game.universeId, {
+                name: game.name,
+                rootPlaceId: game.rootPlaceId || game.placeId || 0,
+              });
+            }
+          }
+        }
+      } catch { /* ignore */ }
+    }
+
+    // Also fetch from the Rolimons API as a fallback/supplement
+    try {
+      const roliRes = await fetch("https://api.rolimons.com/games/v1/gamelist");
+      if (roliRes.ok) {
+        const roliData = await roliRes.json();
+        if (roliData.success && roliData.games) {
+          const entries = Object.entries(roliData.games) as [string, any[]][];
+          const sorted = entries
+            .filter(([_, vals]) => vals && vals[0])
+            .sort((a, b) => (b[1][1] || 0) - (a[1][1] || 0))
+            .slice(0, 30);
+          for (const [placeId, vals] of sorted) {
+            const numId = Number(placeId);
+            if (!universeSet.has(numId)) {
+              universeSet.set(numId, { name: vals[0] as string, rootPlaceId: numId });
+            }
+          }
+        }
+      }
+    } catch { /* ignore */ }
+
+    // Filter out already-existing games and take up to 50 new ones
+    const newGames: { universeId: number; name: string; rootPlaceId: number }[] = [];
+    for (const [uid, info] of universeSet) {
+      if (!existingIds.has(uid) && !existingIds.has(info.rootPlaceId)) {
+        newGames.push({ universeId: uid, name: info.name, rootPlaceId: info.rootPlaceId });
+      }
+      if (newGames.length >= 50) break;
+    }
+
+    // Fetch thumbnails for the place IDs
+    const thumbMap: Record<number, string> = {};
+    const placeIds = newGames.map(g => g.rootPlaceId).filter(Boolean);
+    for (let i = 0; i < placeIds.length; i += 50) {
+      const batch = placeIds.slice(i, i + 50).join(",");
+      try {
+        const thumbRes = await fetch(
+          `https://thumbnails.roblox.com/v1/places/gameicons?placeIds=${batch}&returnPolicy=PlaceHolder&size=512x512&format=Png&isCircular=false`
+        );
+        if (thumbRes.ok) {
+          const thumbData = await thumbRes.json();
+          for (const item of thumbData.data || []) {
+            if (item.state === "Completed" && item.imageUrl) {
+              thumbMap[item.targetId] = item.imageUrl;
+            }
+          }
+        }
+      } catch { /* ignore */ }
     }
 
     let inserted = 0;
-    for (const [placeId, vals] of sorted) {
-      const numericId = Number(placeId);
-      if (existingIds.has(numericId)) continue;
-
-      const name = vals[0] as string;
-      const slug = name
+    for (const game of newGames) {
+      const slug = game.name
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/^-|-$/g, "")
         .substring(0, 80);
 
-      // Check slug collision
       const { data: slugCheck } = await supabase
         .from("games")
         .select("id")
         .eq("slug", slug)
         .maybeSingle();
 
-      const finalSlug = slugCheck ? `${slug}-${placeId}` : slug;
+      const finalSlug = slugCheck ? `${slug}-${game.rootPlaceId || game.universeId}` : slug;
+      const gameId = game.rootPlaceId || game.universeId;
 
       const { error } = await supabase.from("games").insert({
-        title: name,
+        title: game.name,
         slug: finalSlug,
-        image: thumbMap[placeId] || null,
-        description: `Play ${name} on Roblox!`,
+        image: thumbMap[game.rootPlaceId] || null,
+        description: `Play ${game.name} on Roblox!`,
         category: "Casual",
         tags: [],
-        roblox_link: `https://www.roblox.com/games/${placeId}`,
+        roblox_link: `https://www.roblox.com/games/${gameId}`,
         status: "approved",
-        roblox_game_id: numericId,
+        roblox_game_id: gameId,
         submitter_type: "regular",
       });
 
@@ -126,7 +144,7 @@ Deno.serve(async (req) => {
 
     return new Response(
       JSON.stringify({
-        message: `Fetched ${sorted.length} games, inserted ${inserted} new games`,
+        message: `Found ${universeSet.size} total games, ${newGames.length} new candidates, inserted ${inserted}`,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

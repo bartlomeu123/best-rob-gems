@@ -264,9 +264,30 @@ export async function fetchCategoryCounts(): Promise<Record<string, number>> {
   if (!data) return {};
   const counts: Record<string, number> = {};
   for (const row of data) {
-    counts[row.category] = (counts[row.category] || 0) + 1;
+    // Store counts by lowercase slug so they match ALL_CATEGORIES slugs
+    const key = row.category.toLowerCase();
+    counts[key] = (counts[key] || 0) + 1;
   }
   return counts;
+}
+
+// ---- Game Images ----
+
+export async function fetchGameImages(gameId: string): Promise<{ id: string; image_url: string }[]> {
+  const { data } = await supabase
+    .from('game_images')
+    .select('id, image_url')
+    .eq('game_id', gameId)
+    .order('created_at', { ascending: true });
+  return (data as any[]) || [];
+}
+
+export async function addGameImage(gameId: string, imageUrl: string) {
+  return supabase.from('game_images').insert({ game_id: gameId, image_url: imageUrl });
+}
+
+export async function deleteGameImage(imageId: string) {
+  return supabase.from('game_images').delete().eq('id', imageId);
 }
 
 export async function fetchFeatureOptions(): Promise<FeatureOption[]> {

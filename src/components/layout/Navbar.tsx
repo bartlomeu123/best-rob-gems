@@ -77,18 +77,7 @@ const Navbar = () => {
 
         <div className="hidden items-center gap-3 md:flex">
           {searchOpen ? (
-            <form onSubmit={handleSearch} className="flex items-center gap-2 animate-fade-in">
-              <Input
-                value={query}
-                onChange={e => setQuery(e.target.value)}
-                placeholder="Search games..."
-                className="h-9 w-48 bg-secondary"
-                autoFocus
-              />
-              <Button type="button" variant="ghost" size="icon" onClick={() => setSearchOpen(false)}>
-                <X className="h-4 w-4" />
-              </Button>
-            </form>
+            <SearchAutocomplete onClose={() => setSearchOpen(false)} />
           ) : (
             <Button variant="ghost" size="icon" onClick={() => setSearchOpen(true)}>
               <Search className="h-4 w-4" />
