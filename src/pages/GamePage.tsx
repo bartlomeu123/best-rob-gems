@@ -40,6 +40,7 @@ const GamePage = () => {
   const [editOpen, setEditOpen] = useState(false);
   const [editForm, setEditForm] = useState({ title: '', description: '', image: '', category: '', tags: '', roblox_link: '' });
   const [editFeatureIds, setEditFeatureIds] = useState<string[]>([]);
+  const [newImageUrl, setNewImageUrl] = useState('');
 
   const { data: game, isLoading } = useQuery({
     queryKey: ['game', slug],
