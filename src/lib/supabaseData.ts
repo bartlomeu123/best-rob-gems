@@ -68,24 +68,30 @@ export async function fetchGameBySlug(slug: string): Promise<Game | null> {
   return dbGameToGame(data as unknown as DbGame);
 }
 
-export async function fetchGamesByCategory(category: string): Promise<Game[]> {
+export async function fetchGamesByCategory(categorySlug: string): Promise<Game[]> {
+  // Try matching by slug (case-insensitive) - games may store category as name or slug
   const { data } = await supabase
     .from('games')
     .select('*')
-    .eq('category', category)
+    .or(`category.ilike.${categorySlug}`)
     .eq('status', 'approved');
   if (!data) return [];
   return (data as unknown as DbGame[]).map(dbGameToGame);
 }
 
 export async function fetchGamesByTag(tag: string): Promise<Game[]> {
+  // Tags are stored with various casing, so we search with ilike on title/tags
+  // The .contains operator is case-sensitive, so we fetch all approved and filter client-side
   const { data } = await supabase
     .from('games')
     .select('*')
-    .contains('tags', [tag])
     .eq('status', 'approved');
   if (!data) return [];
-  return (data as unknown as DbGame[]).map(dbGameToGame);
+  const lowerTag = tag.toLowerCase();
+  const filtered = (data as unknown as DbGame[]).filter(g =>
+    (g.tags || []).some(t => t.toLowerCase() === lowerTag)
+  );
+  return filtered.map(dbGameToGame);
 }
 
 export async function fetchTrendingGames(): Promise<Game[]> {
