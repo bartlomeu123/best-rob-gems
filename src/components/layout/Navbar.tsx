@@ -7,6 +7,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useQuery } from '@tanstack/react-query';
 import { fetchCategoryCounts } from '@/lib/supabaseData';
 import { ALL_CATEGORIES } from '@/lib/categories';
+import SearchAutocomplete from '@/components/SearchAutocomplete';
 
 const Navbar = () => {
   const [searchOpen, setSearchOpen] = useState(false);
