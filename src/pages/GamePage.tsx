@@ -68,6 +68,12 @@ const GamePage = () => {
     enabled: isAdmin,
   });
 
+  const { data: gameImagesData = [] } = useQuery({
+    queryKey: ['gameImages', game?.id],
+    queryFn: () => fetchGameImages(game!.id),
+    enabled: !!game?.id,
+  });
+
   useEffect(() => {
     if (user && game?.id) {
       getUserVote(game.id, user.id).then(setUserVote);
