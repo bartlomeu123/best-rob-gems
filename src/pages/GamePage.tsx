@@ -16,6 +16,7 @@ import {
   fetchGameBySlug, fetchApprovedGames, fetchComments, addComment, castVote,
   getUserVote, toggleFavorite, isFavorited, reportComment, updateGame, deleteComment,
   castCommentVote, getUserCommentVotes, fetchGameFeatures, fetchFeatureOptions,
+  fetchGameImages, addGameImage, deleteGameImage,
 } from '@/lib/supabaseData';
 import FeatureChecklist from '@/components/game/FeatureChecklist';
 import { ALL_CATEGORIES } from '@/lib/categories';
