@@ -1,6 +1,6 @@
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { getScore, getScoreTextClass, PROS_OPTIONS, CONS_OPTIONS } from '@/lib/types';
-import { ThumbsUp, ThumbsDown, ExternalLink, Heart, Flag, ArrowLeft, Edit, Trash2, ChevronUp, ChevronDown, Check } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, ExternalLink, Heart, Flag, ArrowLeft, Edit, Trash2, ChevronUp, ChevronDown, Check, Plus, Image } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
@@ -16,6 +16,7 @@ import {
   fetchGameBySlug, fetchApprovedGames, fetchComments, addComment, castVote,
   getUserVote, toggleFavorite, isFavorited, reportComment, updateGame, deleteComment,
   castCommentVote, getUserCommentVotes, fetchGameFeatures, fetchFeatureOptions,
+  fetchGameImages, addGameImage, deleteGameImage,
 } from '@/lib/supabaseData';
 import FeatureChecklist from '@/components/game/FeatureChecklist';
 import { ALL_CATEGORIES } from '@/lib/categories';
@@ -39,6 +40,7 @@ const GamePage = () => {
   const [editOpen, setEditOpen] = useState(false);
   const [editForm, setEditForm] = useState({ title: '', description: '', image: '', category: '', tags: '', roblox_link: '' });
   const [editFeatureIds, setEditFeatureIds] = useState<string[]>([]);
+  const [newImageUrl, setNewImageUrl] = useState('');
 
   const { data: game, isLoading } = useQuery({
     queryKey: ['game', slug],
@@ -64,6 +66,12 @@ const GamePage = () => {
     queryKey: ['featureOptions'],
     queryFn: fetchFeatureOptions,
     enabled: isAdmin,
+  });
+
+  const { data: gameImagesData = [] } = useQuery({
+    queryKey: ['gameImages', game?.id],
+    queryFn: () => fetchGameImages(game!.id),
+    enabled: !!game?.id,
   });
 
   useEffect(() => {
@@ -264,7 +272,62 @@ const GamePage = () => {
             <p className="text-sm text-muted-foreground leading-relaxed">{game.description}</p>
           </section>
 
-          {/* Community Evaluation */}
+          {/* Image Gallery */}
+          {(gameImagesData.length > 0 || isAdmin) && (
+            <section className="rounded-xl border border-border bg-card p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="font-display text-xl font-bold flex items-center gap-2">
+                  <Image className="h-5 w-5" /> Screenshots & Media
+                </h2>
+              </div>
+              {gameImagesData.length > 0 && (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
+                  {gameImagesData.map((img) => (
+                    <div key={img.id} className="relative group rounded-lg overflow-hidden border border-border">
+                      <img src={img.image_url} alt="Game screenshot" className="w-full aspect-video object-cover" />
+                      {isAdmin && (
+                        <button
+                          className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={async () => {
+                            await deleteGameImage(img.id);
+                            queryClient.invalidateQueries({ queryKey: ['gameImages', game.id] });
+                            toast.success('Image removed');
+                          }}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {isAdmin && (
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Paste image URL..."
+                    value={newImageUrl}
+                    onChange={e => setNewImageUrl(e.target.value)}
+                    className="flex-1"
+                  />
+                  <Button
+                    size="sm"
+                    disabled={!newImageUrl.trim()}
+                    onClick={async () => {
+                      const { error } = await addGameImage(game.id, newImageUrl.trim());
+                      if (error) { toast.error('Failed to add image'); return; }
+                      setNewImageUrl('');
+                      queryClient.invalidateQueries({ queryKey: ['gameImages', game.id] });
+                      toast.success('Image added!');
+                    }}
+                  >
+                    <Plus className="h-4 w-4 mr-1" /> Add
+                  </Button>
+                </div>
+              )}
+            </section>
+          )}
+
+
           <CommunityEvaluation comments={comments} />
 
           {/* Comments */}
