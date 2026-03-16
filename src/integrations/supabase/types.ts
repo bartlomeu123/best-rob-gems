@@ -222,6 +222,35 @@ export type Database = {
           },
         ]
       }
+      game_images: {
+        Row: {
+          created_at: string
+          game_id: string
+          id: string
+          image_url: string
+        }
+        Insert: {
+          created_at?: string
+          game_id: string
+          id?: string
+          image_url: string
+        }
+        Update: {
+          created_at?: string
+          game_id?: string
+          id?: string
+          image_url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "game_images_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       games: {
         Row: {
           category: string
