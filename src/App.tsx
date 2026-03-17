@@ -22,6 +22,7 @@ import AddGamePage from "./pages/AddGamePage";
 import AdminPage from "./pages/AdminPage";
 import UserProfilePage from "./pages/UserProfilePage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
+import DiscoveryPage from "./pages/DiscoveryPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
