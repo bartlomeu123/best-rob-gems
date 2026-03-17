@@ -45,12 +45,13 @@ const SearchAutocomplete = ({ onClose }: { onClose: () => void }) => {
     }
     timerRef.current = setTimeout(async () => {
       setLoading(true);
-      const q = query.trim().toLowerCase();
+      const q = query.trim();
+      // Use ilike for partial, case-insensitive matching on title and category
       const { data } = await supabase
         .from('games')
         .select('id, slug, title, image, likes, dislikes, category, tags')
         .eq('status', 'approved')
-        .or(`title.ilike.%${q}%,category.ilike.%${q}%,tags.cs.{${q}}`)
+        .or(`title.ilike.%${q}%,category.ilike.%${q}%`)
         .limit(8);
       setResults((data as SearchResult[]) || []);
       setOpen(true);

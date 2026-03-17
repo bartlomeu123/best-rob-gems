@@ -4,7 +4,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Shield, Plus, Trash2, Check, X, AlertTriangle, Edit, Eye } from 'lucide-react';
+import { Shield, Plus, Trash2, Check, X, AlertTriangle, Edit, Eye, Download, Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate, Link } from 'react-router-dom';
 import { useEffect, useState } from 'react';
@@ -29,6 +29,7 @@ const AdminPage = () => {
   const [featureOptions, setFeatureOptions] = useState<FeatureOption[]>([]);
   const [pendingDeveloperNames, setPendingDeveloperNames] = useState<Record<string, string>>({});
   const [loadingData, setLoadingData] = useState(true);
+  const [importing, setImporting] = useState(false);
 
   const [addOpen, setAddOpen] = useState(false);
   const [addForm, setAddForm] = useState({
@@ -229,6 +230,31 @@ const AdminPage = () => {
           <Shield className="h-8 w-8 text-primary" />
           <h1 className="font-display text-3xl font-bold">Admin Panel</h1>
         </div>
+      </div>
+
+      <div className="mb-6">
+        <Button
+          variant="secondary"
+          className="gap-2"
+          disabled={importing}
+          onClick={async () => {
+            setImporting(true);
+            try {
+              const { data, error } = await supabase.functions.invoke('fetch-roblox-games');
+              if (error) throw error;
+              const msg = data?.message || `${data?.inserted || 0} new games added`;
+              toast.success(msg);
+              loadData();
+            } catch (err: any) {
+              toast.error('Import failed: ' + (err.message || 'Unknown error'));
+            } finally {
+              setImporting(false);
+            }
+          }}
+        >
+          {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+          {importing ? 'Importing...' : 'Import 50 New Games'}
+        </Button>
       </div>
 
       <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-3">
