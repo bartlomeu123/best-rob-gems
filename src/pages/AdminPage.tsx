@@ -232,6 +232,31 @@ const AdminPage = () => {
         </div>
       </div>
 
+      <div className="mb-6">
+        <Button
+          variant="secondary"
+          className="gap-2"
+          disabled={importing}
+          onClick={async () => {
+            setImporting(true);
+            try {
+              const { data, error } = await supabase.functions.invoke('fetch-roblox-games');
+              if (error) throw error;
+              const msg = data?.message || `${data?.inserted || 0} new games added`;
+              toast.success(msg);
+              loadData();
+            } catch (err: any) {
+              toast.error('Import failed: ' + (err.message || 'Unknown error'));
+            } finally {
+              setImporting(false);
+            }
+          }}
+        >
+          {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+          {importing ? 'Importing...' : 'Import 50 New Games'}
+        </Button>
+      </div>
+
       <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-3">
         <div className="rounded-xl border border-border bg-card p-6">
           <h3 className="font-display text-lg font-bold">Pending Games</h3>

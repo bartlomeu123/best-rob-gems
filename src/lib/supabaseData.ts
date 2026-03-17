@@ -69,12 +69,13 @@ export async function fetchGameBySlug(slug: string): Promise<Game | null> {
 }
 
 export async function fetchGamesByCategory(categorySlug: string): Promise<Game[]> {
-  // Try matching by slug (case-insensitive) - games may store category as name or slug
+  // Match by slug or name (case-insensitive), also handle hyphenated slugs as spaces
+  const nameVariant = categorySlug.replace(/-/g, ' ');
   const { data } = await supabase
     .from('games')
     .select('*')
-    .or(`category.ilike.${categorySlug}`)
-    .eq('status', 'approved');
+    .eq('status', 'approved')
+    .or(`category.ilike.${categorySlug},category.ilike.${nameVariant}`);
   if (!data) return [];
   return (data as unknown as DbGame[]).map(dbGameToGame);
 }

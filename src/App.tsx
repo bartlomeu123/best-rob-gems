@@ -53,6 +53,7 @@ const App = () => (
               <Route path="/add-game" element={<AddGamePage />} />
               <Route path="/admin" element={<AdminPage />} />
               <Route path="/user/:username" element={<UserProfilePage />} />
+              <Route path="/discover/:slug" element={<DiscoveryPage />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </main>

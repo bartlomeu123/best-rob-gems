@@ -6,12 +6,12 @@ import GameCard from '@/components/GameCard';
 
 async function searchGamesFromDb(q: string) {
   if (!q.trim()) return [];
-  const term = q.trim().toLowerCase();
+  const term = q.trim();
   const { data } = await supabase
     .from('games')
     .select('*')
     .eq('status', 'approved')
-    .or(`title.ilike.%${term}%,category.ilike.%${term}%,tags.cs.{${term}}`)
+    .or(`title.ilike.%${term}%,category.ilike.%${term}%`)
     .limit(50);
   return ((data as unknown as DbGame[]) || []).map(dbGameToGame);
 }
