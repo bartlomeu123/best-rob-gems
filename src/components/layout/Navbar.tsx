@@ -120,6 +120,7 @@ const Navbar = () => {
             <Link to="/trending" className="text-sm text-muted-foreground" onClick={() => setMobileOpen(false)}>Trending</Link>
             <Link to="/new-games" className="text-sm text-muted-foreground" onClick={() => setMobileOpen(false)}>New Games</Link>
             <Link to="/add-game" className="text-sm text-muted-foreground" onClick={() => setMobileOpen(false)}>Add Game</Link>
+            <Link to="/contact" className="text-sm text-muted-foreground" onClick={() => setMobileOpen(false)}>Contact</Link>
             <p className="text-xs font-semibold uppercase text-muted-foreground/60 mt-2">Categories</p>
             <div className="grid grid-cols-2 gap-1">
               {(categoriesWithGames.length > 0 ? categoriesWithGames : ALL_CATEGORIES.slice(0, 12)).map(cat => (

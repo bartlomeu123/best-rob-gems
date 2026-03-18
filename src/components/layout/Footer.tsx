@@ -34,7 +34,7 @@ const Footer = () => (
         </div>
       </div>
       <div className="mt-8 border-t border-border pt-4 text-center text-xs text-muted-foreground">
-        © {new Date().getFullYear()} Best Roblox Games. Not affiliated with Roblox Corporation.
+        © {new Date().getFullYear()} Topblox. Not affiliated with Roblox Corporation. Created by 33.
       </div>
     </div>
   </footer>
