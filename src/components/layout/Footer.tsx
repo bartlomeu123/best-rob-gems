@@ -8,8 +8,9 @@ const Footer = () => (
         <div>
           <div className="flex items-center gap-2 font-display text-lg font-bold">
             <Gamepad2 className="h-5 w-5 text-primary" />
-            Best Roblox Games
+            Topblox
           </div>
+          <p className="mt-1 text-xs font-semibold text-muted-foreground/70">Best Roblox Games</p>
           <p className="mt-2 text-sm text-muted-foreground">Community-driven rankings for the best Roblox games.</p>
         </div>
         <div>
@@ -33,7 +34,7 @@ const Footer = () => (
         </div>
       </div>
       <div className="mt-8 border-t border-border pt-4 text-center text-xs text-muted-foreground">
-        © {new Date().getFullYear()} Best Roblox Games. Not affiliated with Roblox Corporation.
+        © {new Date().getFullYear()} Topblox. Not affiliated with Roblox Corporation. Created by 33.
       </div>
     </div>
   </footer>

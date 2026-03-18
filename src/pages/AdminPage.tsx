@@ -30,6 +30,7 @@ const AdminPage = () => {
   const [pendingDeveloperNames, setPendingDeveloperNames] = useState<Record<string, string>>({});
   const [loadingData, setLoadingData] = useState(true);
   const [importing, setImporting] = useState(false);
+  const [retagging, setRetagging] = useState(false);
 
   const [addOpen, setAddOpen] = useState(false);
   const [addForm, setAddForm] = useState({
@@ -232,7 +233,7 @@ const AdminPage = () => {
         </div>
       </div>
 
-      <div className="mb-6">
+      <div className="mb-6 flex flex-wrap gap-3">
         <Button
           variant="secondary"
           className="gap-2"
@@ -254,6 +255,29 @@ const AdminPage = () => {
         >
           {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
           {importing ? 'Importing...' : 'Import 50 New Games'}
+        </Button>
+
+        <Button
+          variant="secondary"
+          className="gap-2"
+          disabled={retagging}
+          onClick={async () => {
+            setRetagging(true);
+            try {
+              const { data, error } = await supabase.functions.invoke('retag-games');
+              if (error) throw error;
+              const msg = data?.message || `${data?.updated || 0} games re-tagged`;
+              toast.success(msg);
+              loadData();
+            } catch (err: any) {
+              toast.error('Re-tag failed: ' + (err.message || 'Unknown error'));
+            } finally {
+              setRetagging(false);
+            }
+          }}
+        >
+          {retagging ? <Loader2 className="h-4 w-4 animate-spin" /> : <Edit className="h-4 w-4" />}
+          {retagging ? 'Re-tagging...' : 'Re-tag All Games'}
         </Button>
       </div>
 

@@ -39,7 +39,7 @@ const Navbar = () => {
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
         <Link to="/" className="flex items-center gap-2 font-display text-xl font-bold text-foreground">
           <Gamepad2 className="h-6 w-6 text-primary" />
-          <span>Best Roblox <span className="text-primary">Games</span></span>
+          <span>Top<span className="text-primary">blox</span></span>
         </Link>
 
         {/* Desktop Nav */}
@@ -73,6 +73,7 @@ const Navbar = () => {
           </div>
 
           <Link to="/add-game" className="text-sm text-muted-foreground transition-colors hover:text-foreground">Add Game</Link>
+          <Link to="/contact" className="text-sm text-muted-foreground transition-colors hover:text-foreground">Contact</Link>
         </div>
 
         <div className="hidden items-center gap-3 md:flex">
@@ -119,6 +120,7 @@ const Navbar = () => {
             <Link to="/trending" className="text-sm text-muted-foreground" onClick={() => setMobileOpen(false)}>Trending</Link>
             <Link to="/new-games" className="text-sm text-muted-foreground" onClick={() => setMobileOpen(false)}>New Games</Link>
             <Link to="/add-game" className="text-sm text-muted-foreground" onClick={() => setMobileOpen(false)}>Add Game</Link>
+            <Link to="/contact" className="text-sm text-muted-foreground" onClick={() => setMobileOpen(false)}>Contact</Link>
             <p className="text-xs font-semibold uppercase text-muted-foreground/60 mt-2">Categories</p>
             <div className="grid grid-cols-2 gap-1">
               {(categoriesWithGames.length > 0 ? categoriesWithGames : ALL_CATEGORIES.slice(0, 12)).map(cat => (

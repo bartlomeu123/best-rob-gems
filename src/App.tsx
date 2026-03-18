@@ -23,6 +23,7 @@ import AdminPage from "./pages/AdminPage";
 import UserProfilePage from "./pages/UserProfilePage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import DiscoveryPage from "./pages/DiscoveryPage";
+import ContactPage from "./pages/ContactPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -54,6 +55,7 @@ const App = () => (
               <Route path="/admin" element={<AdminPage />} />
               <Route path="/user/:username" element={<UserProfilePage />} />
               <Route path="/discover/:slug" element={<DiscoveryPage />} />
+              <Route path="/contact" element={<ContactPage />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </main>
