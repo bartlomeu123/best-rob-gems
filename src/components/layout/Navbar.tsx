@@ -73,6 +73,7 @@ const Navbar = () => {
           </div>
 
           <Link to="/add-game" className="text-sm text-muted-foreground transition-colors hover:text-foreground">Add Game</Link>
+          <Link to="/contact" className="text-sm text-muted-foreground transition-colors hover:text-foreground">Contact</Link>
         </div>
 
         <div className="hidden items-center gap-3 md:flex">
