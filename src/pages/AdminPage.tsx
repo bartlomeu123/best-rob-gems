@@ -30,6 +30,7 @@ const AdminPage = () => {
   const [pendingDeveloperNames, setPendingDeveloperNames] = useState<Record<string, string>>({});
   const [loadingData, setLoadingData] = useState(true);
   const [importing, setImporting] = useState(false);
+  const [retagging, setRetagging] = useState(false);
 
   const [addOpen, setAddOpen] = useState(false);
   const [addForm, setAddForm] = useState({
