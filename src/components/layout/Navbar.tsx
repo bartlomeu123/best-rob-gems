@@ -39,7 +39,7 @@ const Navbar = () => {
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
         <Link to="/" className="flex items-center gap-2 font-display text-xl font-bold text-foreground">
           <Gamepad2 className="h-6 w-6 text-primary" />
-          <span>Best Roblox <span className="text-primary">Games</span></span>
+          <span>Top<span className="text-primary">blox</span></span>
         </Link>
 
         {/* Desktop Nav */}
