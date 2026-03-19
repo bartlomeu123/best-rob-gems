@@ -22,7 +22,22 @@ const LoginPage = () => {
     if (user) navigate("/");
   }, [user, navigate]);
 
-  // 🔵 LOGIN GOOGLE (já existente)
+  // 🟣 CAPTURA O CODE DO ROBLOX (NOVO)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("code");
+
+    if (code) {
+      console.log("Roblox code:", code);
+
+      toast.success("Login com Roblox recebido!");
+
+      // limpa a URL (remove ?code=...)
+      window.history.replaceState({}, document.title, "/login");
+    }
+  }, []);
+
+  // 🔵 LOGIN GOOGLE
   const handleGoogleLogin = async () => {
     setLoading(true);
     try {
@@ -37,11 +52,11 @@ const LoginPage = () => {
     }
   };
 
-  // 🟣 LOGIN ROBLOX (NOVO)
+  // 🟣 LOGIN ROBLOX (AJUSTADO)
   const handleRobloxLogin = () => {
     const clientId = "6400846031443177149";
 
-    const redirectUri = encodeURIComponent(`${window.location.origin}/auth/roblox/callback`);
+    const redirectUri = encodeURIComponent(`${window.location.origin}/login`);
 
     const url = `https://authorize.roblox.com/?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid`;
 
@@ -144,12 +159,12 @@ const LoginPage = () => {
 
         <div className="space-y-3">
           {/* GOOGLE */}
-          <Button variant="secondary" className="w-full gap-2" onClick={handleGoogleLogin}>
+          <Button variant="secondary" className="w-full gap-2" onClick={handleGoogleLogin} disabled={loading}>
             Continue with Google
           </Button>
 
           {/* ROBLOX */}
-          <Button variant="secondary" className="w-full gap-2" onClick={handleRobloxLogin}>
+          <Button variant="secondary" className="w-full gap-2" onClick={handleRobloxLogin} disabled={loading}>
             <img src="https://tr.rbxcdn.com/favicon.ico" className="w-4 h-4" />
             Continue with Roblox
           </Button>
