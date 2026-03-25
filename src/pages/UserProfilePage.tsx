@@ -13,23 +13,35 @@ const UserProfilePage = () => {
   const isOwnShortcut = username === 'me';
 
   const { data: viewedProfile } = useQuery({
-    queryKey: ['profile', username],
+    queryKey: ['profile', username, user?.id],
     queryFn: async () => {
       if (!username) return null;
-      if (isOwnShortcut) return profile;
+      if (isOwnShortcut) {
+        if (!user?.id) return null;
+
+        const { data } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        return data;
+      }
 
       const { data } = await supabase
         .from('profiles')
         .select('*')
         .eq('username', username)
-        .single();
+        .maybeSingle();
 
       return data;
     },
-    enabled: !!username,
+    enabled: !!username && (!isOwnShortcut || !!user?.id),
   });
 
-  const targetUserId = isOwnShortcut ? user?.id : viewedProfile?.user_id;
+  const effectiveProfile = viewedProfile ?? (isOwnShortcut ? profile : null);
+
+  const targetUserId = isOwnShortcut ? user?.id : effectiveProfile?.user_id;
   const isOwnProfile = !!user?.id && user.id === targetUserId;
 
   const { data: submittedGames = [] } = useQuery({
@@ -44,15 +56,18 @@ const UserProfilePage = () => {
     enabled: !!targetUserId && isOwnProfile,
   });
 
-  const displayName = viewedProfile?.username || profile?.username || username;
+  const displayName =
+    effectiveProfile?.username ||
+    (isOwnShortcut ? user?.email?.split('@')[0] : username) ||
+    'User';
 
   return (
     <div className="container mx-auto px-4 py-6">
       <div className="rounded-xl border border-border bg-card p-8">
         <div className="flex items-center gap-4">
           <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/20 font-display text-2xl font-bold text-primary">
-            {viewedProfile?.avatar_url ? (
-              <img src={viewedProfile.avatar_url} alt={displayName} className="h-full w-full rounded-full object-cover" />
+            {effectiveProfile?.avatar_url ? (
+              <img src={effectiveProfile.avatar_url} alt={displayName} className="h-full w-full rounded-full object-cover" />
             ) : (
               (displayName || 'U')[0].toUpperCase()
             )}
@@ -60,7 +75,7 @@ const UserProfilePage = () => {
           <div>
             <h1 className="font-display text-2xl font-bold">{displayName}</h1>
             <p className="text-sm text-muted-foreground">
-              Member since {viewedProfile ? new Date(viewedProfile.created_at).toLocaleDateString() : '...'}
+              Member since {effectiveProfile ? new Date(effectiveProfile.created_at).toLocaleDateString() : '...'}
             </p>
           </div>
         </div>

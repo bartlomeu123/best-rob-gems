@@ -37,18 +37,92 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  const fetchProfile = async (userId: string) => {
-    const { data } = await supabase
+  const getPreferredProfileValues = (authUser: User) => {
+    const metadata = (authUser.user_metadata ?? {}) as Record<string, unknown>;
+
+    const usernameCandidates = [
+      metadata.username,
+      metadata.full_name,
+      metadata.name,
+      authUser.email?.split('@')[0],
+    ]
+      .map((value) => (typeof value === 'string' ? value.trim() : ''))
+      .filter(Boolean);
+
+    const avatarCandidates = [metadata.avatar_url, metadata.picture]
+      .map((value) => (typeof value === 'string' ? value.trim() : ''))
+      .filter(Boolean);
+
+    return {
+      username: usernameCandidates[0] ?? `user_${authUser.id.slice(0, 8)}`,
+      avatar_url: avatarCandidates[0] ?? null,
+    };
+  };
+
+  const fetchProfile = async (authUser: User) => {
+    const preferred = getPreferredProfileValues(authUser);
+
+    const { data: existingProfile, error: existingProfileError } = await supabase
       .from('profiles')
       .select('*')
-      .eq('user_id', userId)
-      .single();
-    setProfile(data);
+      .eq('user_id', authUser.id)
+      .maybeSingle();
+
+    if (existingProfileError) {
+      console.error('Failed to fetch profile:', existingProfileError.message);
+    }
+
+    let nextProfile = existingProfile;
+
+    if (!nextProfile) {
+      const { data: insertedProfile, error: insertProfileError } = await supabase
+        .from('profiles')
+        .insert({
+          user_id: authUser.id,
+          username: preferred.username,
+          avatar_url: preferred.avatar_url,
+        })
+        .select('*')
+        .maybeSingle();
+
+      if (insertProfileError) {
+        console.error('Failed to create missing profile:', insertProfileError.message);
+      } else {
+        nextProfile = insertedProfile;
+      }
+    }
+
+    if (nextProfile) {
+      const hasPlaceholderName =
+        nextProfile.username.toLowerCase() === 'me' || nextProfile.username.startsWith('user_');
+      const needsAvatarSync = !nextProfile.avatar_url && !!preferred.avatar_url;
+
+      if (hasPlaceholderName || needsAvatarSync) {
+        const { data: updatedProfile, error: updateProfileError } = await supabase
+          .from('profiles')
+          .update({
+            username: hasPlaceholderName ? preferred.username : nextProfile.username,
+            avatar_url: nextProfile.avatar_url || preferred.avatar_url,
+          })
+          .eq('user_id', authUser.id)
+          .select('*')
+          .maybeSingle();
+
+        if (updateProfileError) {
+          console.error('Failed to sync profile metadata:', updateProfileError.message);
+        } else {
+          nextProfile = updatedProfile;
+        }
+      }
+    }
+
+    setProfile(nextProfile ?? null);
 
     const { data: roles } = await supabase
       .from('user_roles')
       .select('role')
-      .eq('user_id', userId);
+      .eq('user_id', authUser.id);
+
     setIsAdmin(roles?.some(r => r.role === 'admin') ?? false);
   };
 
@@ -58,7 +132,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setSession(session);
         setUser(session?.user ?? null);
         if (session?.user) {
-          setTimeout(() => fetchProfile(session.user.id), 0);
+          setTimeout(() => {
+            void fetchProfile(session.user);
+          }, 0);
         } else {
           setProfile(null);
           setIsAdmin(false);
@@ -71,7 +147,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        fetchProfile(session.user.id);
+        void fetchProfile(session.user);
       }
       setLoading(false);
     });
