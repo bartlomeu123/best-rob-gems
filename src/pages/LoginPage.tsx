@@ -21,7 +21,21 @@ const LoginPage = () => {
     if (user) navigate("/");
   }, [user, navigate]);
 
-  // 🟣 CAPTURA O CODE DO ROBLOX (NOVO)
+  // 🔵 CAPTURA SESSÃO APÓS OAUTH (GOOGLE)
+  useEffect(() => {
+    const handleOAuth = async () => {
+      const { data } = await supabase.auth.getSession();
+
+      if (data.session) {
+        toast.success("Signed in with Google!");
+        navigate("/");
+      }
+    };
+
+    handleOAuth();
+  }, []);
+
+  // 🟣 CAPTURA O CODE DO ROBLOX
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const code = params.get("code");
@@ -43,7 +57,7 @@ const LoginPage = () => {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: window.location.origin,
+          redirectTo: `${window.location.origin}/login`,
         },
       });
 
@@ -55,7 +69,7 @@ const LoginPage = () => {
     }
   };
 
-  // 🟣 LOGIN ROBLOX (AJUSTADO)
+  // 🟣 LOGIN ROBLOX
   const handleRobloxLogin = () => {
     const clientId = "6400846031443177149";
 
