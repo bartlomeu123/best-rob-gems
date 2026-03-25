@@ -5,7 +5,6 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable";
 import { toast } from "sonner";
 
 const LoginPage = () => {
@@ -32,19 +31,23 @@ const LoginPage = () => {
 
       toast.success("Login com Roblox recebido!");
 
-      // limpa a URL (remove ?code=...)
       window.history.replaceState({}, document.title, "/login");
     }
   }, []);
 
-  // 🔵 LOGIN GOOGLE
+  // 🔵 LOGIN GOOGLE (SUPABASE)
   const handleGoogleLogin = async () => {
     setLoading(true);
+
     try {
-      const result = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: window.location.origin,
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: window.location.origin,
+        },
       });
-      if (result.error) throw result.error;
+
+      if (error) throw error;
     } catch (err: any) {
       toast.error(err.message || "Google sign-in failed");
     } finally {
@@ -158,12 +161,10 @@ const LoginPage = () => {
         </div>
 
         <div className="space-y-3">
-          {/* GOOGLE */}
           <Button variant="secondary" className="w-full gap-2" onClick={handleGoogleLogin} disabled={loading}>
             Continue with Google
           </Button>
 
-          {/* ROBLOX */}
           <Button variant="secondary" className="w-full gap-2" onClick={handleRobloxLogin} disabled={loading}>
             <img src="https://tr.rbxcdn.com/favicon.ico" className="w-4 h-4" />
             Continue with Roblox
