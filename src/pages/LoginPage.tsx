@@ -21,17 +21,9 @@ const LoginPage = () => {
     if (user) navigate("/");
   }, [user, navigate]);
 
-  // Handle OAuth callback session
-  useEffect(() => {
-    const handleOAuth = async () => {
-      const { data } = await supabase.auth.getSession();
-      if (data.session) {
-        toast.success("Signed in successfully!");
-        navigate("/");
-      }
-    };
-    handleOAuth();
-  }, [navigate]);
+  // OAuth callback is now handled in main.tsx before the app mounts.
+  // The useAuth hook's onAuthStateChange will detect the session and
+  // the effect above (user → navigate) will redirect to home.
 
   const handleGoogleLogin = async () => {
     setLoading(true);

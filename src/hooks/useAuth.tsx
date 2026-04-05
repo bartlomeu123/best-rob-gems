@@ -127,11 +127,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   useEffect(() => {
+    // Set up the listener FIRST so it catches all events including INITIAL_SESSION
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
         if (session?.user) {
+          // Use setTimeout to avoid blocking the auth state change callback
           setTimeout(() => {
             void fetchProfile(session.user);
           }, 0);
@@ -143,7 +145,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     );
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    // Then get the current session (may already be processed by main.tsx bootstrap)
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error) {
+        console.warn('getSession error (stale token?):', error.message);
+        supabase.auth.signOut();
+        setLoading(false);
+        return;
+      }
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
