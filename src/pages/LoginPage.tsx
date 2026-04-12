@@ -30,9 +30,6 @@ const LoginPage = () => {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
-        options: {
-          redirectTo: `${window.location.origin}/login`,
-        },
       });
       if (error) throw error;
     } catch (err: any) {
@@ -146,9 +143,7 @@ const LoginPage = () => {
       <div className="w-full max-w-sm rounded-xl border border-border bg-card p-8 space-y-6">
         <div className="text-center">
           <Gamepad2 className="mx-auto h-10 w-10 text-primary mb-2" />
-          <h1 className="font-display text-2xl font-bold">
-            {mode === "signup" ? "Create Account" : "Sign In"}
-          </h1>
+          <h1 className="font-display text-2xl font-bold">{mode === "signup" ? "Create Account" : "Sign In"}</h1>
         </div>
 
         <div className="space-y-3">
@@ -168,19 +163,9 @@ const LoginPage = () => {
 
         <form onSubmit={handleEmailAuth} className="space-y-3">
           {mode === "signup" && (
-            <Input
-              placeholder="Username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-            />
+            <Input placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} />
           )}
-          <Input
-            placeholder="Email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
+          <Input placeholder="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
           <Input
             placeholder="Password"
             type="password"
