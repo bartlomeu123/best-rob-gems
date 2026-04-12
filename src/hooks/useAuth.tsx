@@ -62,34 +62,31 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const fetchProfile = async (authUser: User) => {
     const preferred = getPreferredProfileValues(authUser);
 
-    const { data: existingProfile, error: existingProfileError } = await supabase
+    // Upsert profile: insert if missing, update placeholder names/avatars
+    const { data: upsertedProfile, error: upsertError } = await supabase
       .from('profiles')
-      .select('*')
-      .eq('user_id', authUser.id)
-      .maybeSingle();
-
-    if (existingProfileError) {
-      console.error('Failed to fetch profile:', existingProfileError.message);
-    }
-
-    let nextProfile = existingProfile;
-
-    if (!nextProfile) {
-      const { data: insertedProfile, error: insertProfileError } = await supabase
-        .from('profiles')
-        .insert({
+      .upsert(
+        {
           user_id: authUser.id,
           username: preferred.username,
           avatar_url: preferred.avatar_url,
-        })
-        .select('*')
-        .maybeSingle();
+        },
+        { onConflict: 'user_id', ignoreDuplicates: false }
+      )
+      .select('*')
+      .maybeSingle();
 
-      if (insertProfileError) {
-        console.error('Failed to create missing profile:', insertProfileError.message);
-      } else {
-        nextProfile = insertedProfile;
-      }
+    let nextProfile = upsertedProfile;
+
+    if (upsertError) {
+      console.error('Profile upsert failed:', upsertError.message);
+      // Fallback: just fetch existing profile
+      const { data: existing } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', authUser.id)
+        .maybeSingle();
+      nextProfile = existing;
     }
 
     if (nextProfile) {
@@ -98,7 +95,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const needsAvatarSync = !nextProfile.avatar_url && !!preferred.avatar_url;
 
       if (hasPlaceholderName || needsAvatarSync) {
-        const { data: updatedProfile, error: updateProfileError } = await supabase
+        const { data: updatedProfile } = await supabase
           .from('profiles')
           .update({
             username: hasPlaceholderName ? preferred.username : nextProfile.username,
@@ -107,12 +104,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           .eq('user_id', authUser.id)
           .select('*')
           .maybeSingle();
-
-        if (updateProfileError) {
-          console.error('Failed to sync profile metadata:', updateProfileError.message);
-        } else {
-          nextProfile = updatedProfile;
-        }
+        if (updatedProfile) nextProfile = updatedProfile;
       }
     }
 
