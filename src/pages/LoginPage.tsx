@@ -21,24 +21,6 @@ const LoginPage = () => {
     if (user) navigate("/");
   }, [user, navigate]);
 
-  // OAuth callback is now handled in main.tsx before the app mounts.
-  // The useAuth hook's onAuthStateChange will detect the session and
-  // the effect above (user → navigate) will redirect to home.
-
-  const handleGoogleLogin = async () => {
-    setLoading(true);
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-      });
-      if (error) throw error;
-    } catch (err: any) {
-      toast.error(err.message || "Google sign-in failed");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -144,21 +126,6 @@ const LoginPage = () => {
         <div className="text-center">
           <Gamepad2 className="mx-auto h-10 w-10 text-primary mb-2" />
           <h1 className="font-display text-2xl font-bold">{mode === "signup" ? "Create Account" : "Sign In"}</h1>
-        </div>
-
-        <div className="space-y-3">
-          <Button variant="secondary" className="w-full gap-2" onClick={handleGoogleLogin} disabled={loading}>
-            Continue with Google
-          </Button>
-        </div>
-
-        <div className="relative">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-border" />
-          </div>
-          <div className="relative flex justify-center text-xs">
-            <span className="bg-card px-2 text-muted-foreground">or</span>
-          </div>
         </div>
 
         <form onSubmit={handleEmailAuth} className="space-y-3">

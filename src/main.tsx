@@ -24,7 +24,7 @@ async function bootstrap() {
         window.location.pathname + window.location.search
       );
     } catch (err) {
-      console.error("OAuth bootstrap error:", err);
+      console.error("Auth bootstrap error:", err);
     }
   } else {
     try {
