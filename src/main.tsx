@@ -4,42 +4,56 @@ import App from "./App.tsx";
 import "./index.css";
 
 /**
- * Before mounting React, let Supabase process any OAuth tokens in the URL hash.
- * This prevents React Router from interfering with the hash before Supabase reads it.
- * Also handles stale JWTs left over from the Lovable Cloud migration.
- */
-async function bootstrap() {
+
+* Bootstrap the app while safely handling Supabase OAuth callbacks.
+* This ensures the access_token in the URL hash is processed before
+* React Router mounts and potentially clears the hash.
+  */
+  async function bootstrap() {
   const hash = window.location.hash;
 
-  // If the URL contains an OAuth callback hash, wait for Supabase to process it
-  if (hash && (hash.includes("access_token") || hash.includes("refresh_token") || hash.includes("error_description"))) {
-    try {
-      // getSession() will trigger _initialize() which reads the hash
-      const { data, error } = await supabase.auth.getSession();
-      if (error) {
-        console.warn("OAuth callback processing error:", error.message);
-      }
-      // Clean the hash from the URL after processing
-      if (data.session) {
-        window.history.replaceState(null, "", window.location.pathname + window.location.search);
-      }
-    } catch (err) {
-      console.error("Failed to process OAuth callback:", err);
-    }
-  } else {
-    // Normal page load — validate existing session, clear stale tokens if invalid
-    try {
-      const { error } = await supabase.auth.getSession();
-      if (error) {
-        console.warn("Stale session detected, signing out:", error.message);
-        await supabase.auth.signOut();
-      }
-    } catch {
-      // Ignore — app will work as unauthenticated
-    }
-  }
+// If returning from OAuth (Google, etc)
+if (hash.includes("access_token") || hash.includes("refresh_token")) {
+try {
+// Wait for Supabase to emit the auth event
+await new Promise<void>((resolve) => {
+const { data: listener } = supabase.auth.onAuthStateChange((event) => {
+if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
+listener.subscription.unsubscribe();
+resolve();
+}
+});
 
-  createRoot(document.getElementById("root")!).render(<App />);
+```
+    // Safety fallback in case event does not fire
+    setTimeout(resolve, 1000);
+  });
+
+  // Remove the OAuth hash from the URL
+  window.history.replaceState(
+    null,
+    "",
+    window.location.pathname + window.location.search
+  );
+} catch (err) {
+  console.error("OAuth bootstrap error:", err);
+}
+```
+
+} else {
+// Normal page load — validate session
+try {
+const { error } = await supabase.auth.getSession();
+if (error) {
+console.warn("Invalid session detected, signing out:", error.message);
+await supabase.auth.signOut();
+}
+} catch {
+// Ignore and continue unauthenticated
+}
+}
+
+createRoot(document.getElementById("root")!).render(<App />);
 }
 
 bootstrap();
