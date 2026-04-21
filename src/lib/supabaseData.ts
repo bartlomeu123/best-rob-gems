@@ -137,12 +137,22 @@ export async function fetchPendingGames(): Promise<Game[]> {
 }
 
 export async function fetchAllGames(): Promise<Game[]> {
-  const { data } = await supabase
-    .from('games')
-    .select('*')
-    .order('created_at', { ascending: false });
-  if (!data) return [];
-  return (data as unknown as DbGame[]).map(dbGameToGame);
+  // Paginate to bypass Supabase's default 1000-row cap
+  const pageSize = 1000;
+  const all: DbGame[] = [];
+  let from = 0;
+  while (true) {
+    const { data, error } = await supabase
+      .from('games')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .range(from, from + pageSize - 1);
+    if (error || !data || data.length === 0) break;
+    all.push(...(data as unknown as DbGame[]));
+    if (data.length < pageSize) break;
+    from += pageSize;
+  }
+  return all.map(dbGameToGame);
 }
 
 export async function submitGame(game: {
@@ -258,16 +268,23 @@ export async function adminAddGame(game: {
 // ---- Category counts ----
 
 export async function fetchCategoryCounts(): Promise<Record<string, number>> {
-  const { data } = await supabase
-    .from('games')
-    .select('category')
-    .eq('status', 'approved');
-  if (!data) return {};
+  // Paginate to bypass Supabase's default 1000-row cap
+  const pageSize = 1000;
   const counts: Record<string, number> = {};
-  for (const row of data) {
-    // Store counts by lowercase slug so they match ALL_CATEGORIES slugs
-    const key = row.category.toLowerCase();
-    counts[key] = (counts[key] || 0) + 1;
+  let from = 0;
+  while (true) {
+    const { data, error } = await supabase
+      .from('games')
+      .select('category')
+      .eq('status', 'approved')
+      .range(from, from + pageSize - 1);
+    if (error || !data || data.length === 0) break;
+    for (const row of data) {
+      const key = row.category.toLowerCase();
+      counts[key] = (counts[key] || 0) + 1;
+    }
+    if (data.length < pageSize) break;
+    from += pageSize;
   }
   return counts;
 }
