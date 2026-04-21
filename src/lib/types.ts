@@ -62,7 +62,7 @@ export const PROS_OPTIONS = [
 ];
 
 export const CONS_OPTIONS = [
-  'Too much grinding',
+  'Too much cheaters',
   'Pay to win',
   'Bugs',
   'Toxic community',
